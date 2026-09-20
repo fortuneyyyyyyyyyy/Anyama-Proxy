@@ -45,3 +45,44 @@ html[data-theme="light"] .legal-logo { content: url('./assets/anyama-proxy-logo-
   .footer-studio-link:focus + .footer-hover-credit,
   .footer-hover-credit.is-visible { pointer-events: auto; }
 }
+
+
+/* AKATech hover card: anchored above the link, never to the whole footer. */
+.footer-studio-credit {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.footer-studio-credit .footer-hover-credit {
+  position: absolute;
+  left: 50%;
+  right: auto;
+  bottom: calc(100% + 16px);
+  width: max-content;
+  min-width: 250px;
+  max-width: min(320px, calc(100vw - 36px));
+  opacity: 0;
+  transform: translate(-50%, 12px) scale(.96);
+  transform-origin: bottom center;
+  pointer-events: none;
+  z-index: 10;
+}
+.footer-studio-credit:hover .footer-hover-credit,
+.footer-studio-credit:focus-within .footer-hover-credit,
+.footer-studio-credit .footer-hover-credit.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+}
+.footer-studio-credit .footer-hover-credit img {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  border-radius: 12px;
+}
+@media (max-width: 520px) {
+  .footer-studio-credit .footer-hover-credit {
+    min-width: 230px;
+    bottom: calc(100% + 12px);
+  }
+}

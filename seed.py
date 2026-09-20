@@ -1,7 +1,6 @@
 import os
 
-from app import create_app
-from app.models import Artisan, db
+from app import Artisan, create_app, db
 
 app = create_app()
 
