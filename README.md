@@ -83,6 +83,6 @@ La nouvelle icône carrée fournie est utilisée dans `frontend/assets/favicon.i
 
 
 git add .
-git commit -m "proxy1fbbbf"
+git commit -m "derniere version"
 
 git push -u origin main

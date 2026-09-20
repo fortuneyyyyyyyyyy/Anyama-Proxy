@@ -14,7 +14,8 @@ Anyama Proxy rend visibles les savoir-faire de proximité. Le service permet de 
 - Publication : les nouvelles inscriptions sont enregistrées puis vérifiées avant publication.
 - Contact : les profils publiés peuvent être joints par téléphone ou WhatsApp selon les informations renseignées.
 - Marque : Anyama Proxy.
-- Création : Fortuney & AKATech Studio.
+- Éditeur / créateur : AKATech Studio (AKATech), co-fondateur La Tune.
+- Contact public : wthomasss06@gmail.com ; +225 01 42 50 77 50.
 
 ## Pages publiques
 
