@@ -86,3 +86,30 @@ html[data-theme="light"] .legal-logo { content: url('./assets/anyama-proxy-logo-
     bottom: calc(100% + 12px);
   }
 }
+
+
+/* Final override: the old footer-wide hover rule must never open the card. */
+.site-footer:hover .footer-studio-credit .footer-hover-credit {
+  opacity: 0;
+  transform: translate(-50%, 12px) scale(.96);
+  pointer-events: none;
+}
+.footer-studio-credit:hover .footer-hover-credit,
+.footer-studio-credit:focus-within .footer-hover-credit,
+.footer-studio-credit .footer-hover-credit.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+}
+.footer-studio-credit .footer-hover-credit img {
+  display: block;
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  margin: 0;
+}
+.footer-studio-credit .footer-hover-credit {
+  min-width: 112px;
+  width: 112px;
+  padding: 10px;
+  justify-content: center;
+}

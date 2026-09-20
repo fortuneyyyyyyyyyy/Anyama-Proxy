@@ -83,6 +83,6 @@ La nouvelle icône carrée fournie est utilisée dans `frontend/assets/favicon.i
 
 
 git add .
-git commit -m "gnnef"
+git commit -m "gnnefjj"
 
 git push -u origin main
