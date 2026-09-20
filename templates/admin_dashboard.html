@@ -52,7 +52,9 @@
   const root = document.querySelector('[data-admin-dashboard]');
   const tabs = [...root.querySelectorAll('.admin-tab')];
   const panels = [...root.querySelectorAll('.admin-panel')];
-  tabs.forEach(tab => tab.addEventListener('click', () => { tabs.forEach(item => { const active = item === tab; item.classList.toggle('is-active', active); item.setAttribute('aria-selected', active); }); panels.forEach(panel => { const active = panel.id === tab.dataset.tabTarget; panel.classList.toggle('is-active', active); panel.hidden = !active; }); }));
+  const activateTab = tab => { tabs.forEach(item => { const active = item === tab; item.classList.toggle('is-active', active); item.setAttribute('aria-selected', active); }); panels.forEach(panel => { const active = panel.id === tab.dataset.tabTarget; panel.classList.toggle('is-active', active); panel.hidden = !active; }); };
+  tabs.forEach(tab => tab.addEventListener('click', () => activateTab(tab)));
+  const requestedTab = new URLSearchParams(window.location.search).get('tab'); if (requestedTab === 'removals') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'removals-panel')); if (requestedTab === 'artisans') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'artisans-panel'));
   const items = [...root.querySelectorAll('.admin-artisan-item')];
   const search = root.querySelector('#artisan-search'); const pagination = root.querySelector('#artisan-pagination'); const count = root.querySelector('[data-result-count]'); let page = 1;
   const pageSize = () => window.matchMedia('(max-width: 700px)').matches ? 6 : 10;

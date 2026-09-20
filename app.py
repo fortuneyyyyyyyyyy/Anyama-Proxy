@@ -1,7 +1,10 @@
 import hmac
+import json
 import os
+from html import escape
 from datetime import datetime
 from functools import wraps
+from urllib.request import Request as UrlRequest, urlopen
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
@@ -62,6 +65,31 @@ class RemovalRequest(db.Model):
 
 def admin_configured():
     return bool(os.getenv("ADMIN_EMAIL") and (os.getenv("ADMIN_PASSWORD") or os.getenv("ADMIN_PASSWORD_HASH")))
+
+
+def send_admin_notification(subject, body_html, tab):
+    """Send a best-effort Resend alert; form submissions never fail if email is unavailable."""
+    api_key = os.getenv("RESEND_API_KEY", "").strip()
+    admin_email = os.getenv("ADMIN_EMAIL", "").strip()
+    if not api_key or not admin_email:
+        app.logger.warning("Notification email skipped: RESEND_API_KEY or ADMIN_EMAIL is missing")
+        return False
+    origin = os.getenv("FRONTEND_ORIGIN", "https://anyama-proxy.vercel.app").rstrip("/")
+    admin_url = f"{origin}/admin?tab={tab}"
+    html_body = f"{body_html}<p style='margin-top:24px'><a href='{escape(admin_url)}' style='display:inline-block;padding:12px 18px;background:#f82000;color:#17120e;text-decoration:none;border-radius:999px;font-weight:700'>Ouvrir l’administration</a></p>"
+    payload = json.dumps({
+        "from": os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev"),
+        "to": [admin_email],
+        "subject": subject,
+        "html": html_body,
+    }).encode("utf-8")
+    try:
+        request = UrlRequest("https://api.resend.com/emails", data=payload, headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, method="POST")
+        with urlopen(request, timeout=10) as response:
+            return 200 <= response.status < 300
+    except Exception:
+        app.logger.exception("Resend notification failed")
+        return False
 
 
 def admin_logged_in():
@@ -150,6 +178,11 @@ def create_app(test_config=None):
                                                artisan_name=artisan_name, artisan_id=artisan.id if artisan else None,
                                                reason=str(payload.get("reason", "")).strip() or None))
                 db.session.commit()
+                send_admin_notification(
+                    "Nouvelle demande de retrait — Anyama Proxy",
+                    f"<h2>Nouvelle doléance de retrait</h2><p><strong>Artisan concerné :</strong> {escape(artisan_name)}</p><p><strong>Demandeur :</strong> {escape(requester_name)} · {escape(requester_phone)}</p><p><strong>Motif :</strong> {escape(str(payload.get('reason', '')).strip() or 'Aucun motif indiqué')}</p>",
+                    "removals",
+                )
                 return render_template("removal_success.html")
         return render_template("removal_request.html", form=request.form)
 
@@ -198,6 +231,11 @@ def create_app(test_config=None):
                                        artisan_name=artisan_name, artisan_id=artisan.id if artisan else None,
                                        reason=str(payload.get("reason", "")).strip() or None))
         db.session.commit()
+        send_admin_notification(
+            "Nouvelle demande de retrait — Anyama Proxy",
+            f"<h2>Nouvelle doléance de retrait</h2><p><strong>Artisan concerné :</strong> {escape(artisan_name)}</p><p><strong>Demandeur :</strong> {escape(requester_name)} · {escape(requester_phone)}</p><p><strong>Motif :</strong> {escape(str(payload.get('reason', '')).strip() or 'Aucun motif indiqué')}</p>",
+            "removals",
+        )
         return jsonify({"success": True, "message": "Votre demande de retrait a été envoyée."}), 201
 
     @app.route("/admin/login", methods=["GET", "POST"])
@@ -324,6 +362,11 @@ def save_registration(payload):
                       is_approved=True, status="approved")
     db.session.add(artisan)
     db.session.commit()
+    send_admin_notification(
+        "Nouvelle inscription artisan — Anyama Proxy",
+        f"<h2>Nouvelle inscription publiée</h2><p><strong>Nom :</strong> {escape(artisan.name)}</p><p><strong>Métier :</strong> {escape(artisan.category)}</p><p><strong>Quartier :</strong> {escape(artisan.zone)}</p><p><strong>Contact :</strong> {escape(artisan.phone)}</p>",
+        "artisans",
+    )
     return artisan, None
 
 
