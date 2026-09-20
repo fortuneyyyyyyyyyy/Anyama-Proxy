@@ -12,6 +12,37 @@ async function loadMeta() { const response = await fetch(`${API_BASE}/api/meta`)
 async function loadArtisans(params = new URLSearchParams()) { setState('loading', '<span class="loader"></span> Recherche des artisans…'); try { const response = await fetch(`${API_BASE}/api/artisans?${params}`); if (!response.ok) throw new Error('API'); const payload = await response.json(); $('#count-artisans').textContent = payload.meta.total; if (!payload.data.length) { $('#artisan-grid').innerHTML = ''; setState('empty', '<i data-lucide="search-x"></i><h3>Aucun artisan trouvé</h3><p>Essayez un autre métier.</p>'); } else { $('#artisan-grid').innerHTML = payload.data.map(renderCard).join(''); setState('', ''); } lucide.createIcons(); } catch { setState('error', '<i data-lucide="wifi-off"></i><h3>Le service se réveille…</h3><p>Render peut prendre quelques secondes au premier chargement. Réessayez.</p><button class="morph-button outline" id="retry"><span>Réessayer</span><i data-lucide="refresh-cw"></i></button>'); $('#retry')?.addEventListener('click', () => loadArtisans(params)); lucide.createIcons(); } }
 function updateSubmitState() { const form = $('#registration-form'); const required = ['first_name','last_name','category'].every(name => form.elements[name].value.trim()); const categoryReady = form.elements.category.value !== '__other__' || form.elements.category_custom.value.trim(); const contact = form.elements.phone.value.trim() || form.elements.whatsapp.value.trim(); const ready = required && categoryReady && contact && form.elements.consent.checked; $('.submit', form).disabled = !ready; }
 async function submitRegistration(event) { event.preventDefault(); const form = event.currentTarget; const feedback = $('#form-feedback'); const data = Object.fromEntries(new FormData(form).entries()); if (data.category === '__other__') data.category = data.category_custom.trim(); data.consent = form.elements.consent.checked ? 'on' : ''; delete data.category_custom; feedback.className = 'form-feedback loading'; feedback.textContent = 'Enregistrement en cours…'; try { const response = await fetch(`${API_BASE}/api/artisans`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) }); const payload = await response.json(); if (!response.ok) throw new Error(payload.error || 'Erreur'); feedback.className = 'form-feedback success'; feedback.textContent = 'Merci ! Votre inscription est reçue et sera vérifiée avant publication.'; form.reset(); $('#custom-category-wrap').hidden = true; updateSubmitState(); } catch (error) { feedback.className = 'form-feedback error'; feedback.textContent = error.message || 'Impossible d’envoyer le formulaire.'; } }
+function initMobileMenu() {
+  const header = $('.site-header');
+  const toggle = $('.mobile-menu-toggle');
+  const nav = $('#site-navigation');
+  if (!header || !toggle || !nav) return;
+  const close = () => {
+    header.classList.remove('nav-open');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-label', 'Ouvrir le menu');
+    toggle.innerHTML = '<i data-lucide="menu"></i>';
+    lucide.createIcons();
+  };
+  toggle.addEventListener('click', () => {
+    const open = !header.classList.contains('nav-open');
+    if (open) {
+      header.classList.add('nav-open');
+      toggle.setAttribute('aria-expanded', 'true');
+      toggle.setAttribute('aria-label', 'Fermer le menu');
+      toggle.innerHTML = '<i data-lucide="x"></i>';
+      lucide.createIcons();
+    } else close();
+  });
+  nav.querySelectorAll('a').forEach(link => link.addEventListener('click', close));
+  document.addEventListener('pointerdown', event => {
+    if (!header.contains(event.target)) close();
+  });
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 700) close();
+  });
+}
+
 function initTheme() { const saved = localStorage.getItem('anyama-theme') || 'light'; document.documentElement.dataset.theme = saved; $('.theme-toggle').addEventListener('click', () => { const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'; document.documentElement.dataset.theme = next; localStorage.setItem('anyama-theme', next); $('.theme-toggle').innerHTML = `<i data-lucide="${next === 'light' ? 'sun' : 'moon'}"></i>`; lucide.createIcons(); }); }
 function initPWA() { window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); deferredInstallPrompt = event; $('#install-button').hidden = false; }); $('#install-button').addEventListener('click', async () => { if (!deferredInstallPrompt) return; deferredInstallPrompt.prompt(); await deferredInstallPrompt.userChoice; deferredInstallPrompt = null; $('#install-button').hidden = true; }); if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {}); }
 $('#search-form').addEventListener('submit', event => { event.preventDefault(); const params = new URLSearchParams(new FormData(event.currentTarget)); loadArtisans(params); document.querySelector('#annuaire').scrollIntoView({behavior: 'smooth'}); });
@@ -87,4 +118,4 @@ if (studioCard && studioLink) {
   studioLink.addEventListener('pointerleave', hide);
 }
 
-$('#year').textContent = new Date().getFullYear(); initTheme(); initPWA(); lucide.createIcons(); initSpringMorphButtons(); Promise.all([loadMeta(), loadArtisans()]);
+$('#year').textContent = new Date().getFullYear(); initMobileMenu(); initTheme(); initPWA(); lucide.createIcons(); initSpringMorphButtons(); Promise.all([loadMeta(), loadArtisans()]);

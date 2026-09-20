@@ -131,3 +131,87 @@ html[data-theme="light"] .legal-logo { content: url('./assets/anyama-proxy-logo-
   border-radius: 0;
   filter: drop-shadow(0 10px 18px rgba(0,0,0,.14));
 }
+
+
+/* Mobile header: real accessible hamburger navigation. */
+.mobile-menu-toggle {
+  display: none;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  place-items: center;
+}
+.mobile-menu-toggle svg { width: 20px; height: 20px; }
+
+/* Consent is a real, visible checkbox and remains required by app.js. */
+.registration-panel .consent {
+  display: flex !important;
+  grid-template-columns: none !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  gap: 9px !important;
+  cursor: pointer;
+}
+.registration-panel .consent input[type="checkbox"] {
+  appearance: auto !important;
+  -webkit-appearance: checkbox !important;
+  flex: 0 0 18px;
+  width: 18px !important;
+  height: 18px;
+  min-width: 18px;
+  margin: 1px 0 0;
+  padding: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.registration-panel .consent input[type="checkbox"]:focus-visible {
+  outline: 3px solid rgba(248, 32, 0, .3);
+  outline-offset: 2px;
+}
+
+@media (max-width: 700px) {
+  .site-header {
+    position: relative;
+    min-height: 72px;
+    height: auto;
+    padding: 12px 18px;
+  }
+  .mobile-menu-toggle { display: grid; margin-left: auto; }
+  .site-header nav {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 8px);
+    left: 18px;
+    right: 18px;
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+  }
+  .site-header.nav-open nav { display: flex; }
+  .site-header nav > a {
+    display: block;
+    padding: 13px 12px;
+    border-radius: 10px;
+    font-size: 14px;
+  }
+  .site-header nav > a:hover,
+  .site-header nav > a:focus-visible { background: var(--accent-soft); }
+  .site-header nav .theme-toggle {
+    width: 100%;
+    height: 42px;
+    border-radius: 10px;
+    margin-top: 4px;
+  }
+  .site-header nav > a:first-child { display: block; }
+}
