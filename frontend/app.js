@@ -27,6 +27,47 @@ document.querySelectorAll('.morph-panel').forEach(panel => {
   });
 });
 
+
+function initSpringMorphButtons() {
+  const stiffness = 0.18;
+  const friction = 0.65;
+  const buttons = $$('.morph-button');
+  const states = buttons.map(button => ({
+    button,
+    currentX: 0, currentY: 0, currentScale: 1,
+    targetX: 0, targetY: 0, targetScale: 1,
+    vxX: 0, vxY: 0, vxScale: 0
+  }));
+  if (!states.length) return;
+  const pointerFine = window.matchMedia('(pointer: fine)').matches;
+  states.forEach(state => {
+    if (!pointerFine) return;
+    state.button.addEventListener('mousemove', event => {
+      const rect = state.button.getBoundingClientRect();
+      state.targetX = (event.clientX - (rect.left + rect.width / 2)) * 0.08;
+      state.targetY = (event.clientY - (rect.top + rect.height / 2)) * 0.08;
+      state.targetScale = 1.025;
+    });
+    state.button.addEventListener('mouseleave', () => {
+      state.targetX = 0; state.targetY = 0; state.targetScale = 1;
+    });
+    state.button.addEventListener('focus', () => { state.targetScale = 1.025; });
+    state.button.addEventListener('blur', () => { state.targetScale = 1; });
+  });
+  const tick = () => {
+    states.forEach(state => {
+      state.vxX += (state.targetX - state.currentX) * stiffness; state.vxX *= friction; state.currentX += state.vxX;
+      state.vxY += (state.targetY - state.currentY) * stiffness; state.vxY *= friction; state.currentY += state.vxY;
+      state.vxScale += (state.targetScale - state.currentScale) * stiffness; state.vxScale *= friction; state.currentScale += state.vxScale;
+      state.button.style.setProperty('--morph-x', `${state.currentX.toFixed(2)}px`);
+      state.button.style.setProperty('--morph-y', `${state.currentY.toFixed(2)}px`);
+      state.button.style.setProperty('--morph-scale', state.currentScale.toFixed(4));
+    });
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
 const studioCard = document.querySelector('.footer-hover-credit');
 const studioLink = document.querySelector('.footer-studio-link');
 if (studioCard && studioLink) {
@@ -41,4 +82,4 @@ if (studioCard && studioLink) {
   studioLink.addEventListener('pointerleave', hide);
 }
 
-$('#year').textContent = new Date().getFullYear(); initTheme(); initPWA(); lucide.createIcons(); Promise.all([loadMeta(), loadArtisans()]);
+$('#year').textContent = new Date().getFullYear(); initTheme(); initPWA(); lucide.createIcons(); initSpringMorphButtons(); Promise.all([loadMeta(), loadArtisans()]);
