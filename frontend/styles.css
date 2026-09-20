@@ -452,3 +452,5 @@ html[data-theme="dark"] .hero {
   .install-button { order: 6; }
   .footer-studio-link { white-space: normal; }
 }
+
+html[data-theme="dark"] .search-panel select,html[data-theme="dark"] .registration-panel select{background-color:#241a14!important;color:#fffaf5!important;color-scheme:dark}html[data-theme="dark"] .search-panel select option,html[data-theme="dark"] .registration-panel select option{background-color:#241a14;color:#fffaf5}html[data-theme="light"] .search-panel select,html[data-theme="light"] .registration-panel select{color-scheme:light}
