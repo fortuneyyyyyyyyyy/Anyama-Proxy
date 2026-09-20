@@ -1,48 +1,69 @@
 # Anyama Proxy
 
-Annuaire de proxymité pour trouver rapidement un artisan à Anyama. La version actuelle sépare le **frontend statique HTML/CSS/JS**, prévu pour Vercel, et le **backend Flask persistant**, prévu pour Render avec PostgreSQL/Neon.
+Anyama Proxy est un annuaire local pour trouver rapidement un artisan à Anyama. Le **frontend public** est déployé sur Vercel et le **backend Flask** sur Render avec PostgreSQL/Neon. Le domaine public de référence est [anyama-proxy.vercel.app](https://anyama-proxy.vercel.app/).
 
 ## Fonctionnalités
 
-- Annuaire public, recherche par mot-clé, métier et zone.
-- Profils artisans avec appel téléphonique et WhatsApp.
-- Inscription via l’API JSON ; un contact Téléphone ou WhatsApp suffit, les deux peuvent être remplis.
-- Bouton d’envoi grisé tant que les champs nécessaires, le consentement et au moins un contact ne sont pas complets.
-- Modération par défaut : les inscriptions sont persistées mais restent masquées (`is_approved=false`).
-- Interface orange, thème clair/sombre, watermark ANYAMA PROXY dans le footer.
-- Branding : « Créé par Fortuney & AKATech Studio ».
-- Interactions morphing : recherche et formulaire se déploient, boutons révèlent leur libellé.
-- Lucide Icons, PWA installable, service worker et cache shell.
+- Annuaire public avec recherche par mot-clé, métier et quartier.
+- Quartier affiché depuis la valeur réellement enregistrée dans `artisans.zone`.
+- Profils avec bouton Appeler ; le bouton WhatsApp apparaît uniquement lorsqu’un numéro WhatsApp est renseigné.
+- Inscription sans compte avec prénom, nom, métier, quartier, consentement et au moins un contact.
+- Publication immédiate des inscriptions valides et consenties.
+- Option **Autre métier…** et **Autre quartier…** avec saisie libre.
+- Page publique dédiée de retrait : `https://anyama-proxy.vercel.app/retrait.html`.
+- Dashboard admin avec recherche, onglets Artisans / Doléances, pagination 10 sur PC et 6 sur mobile.
+- Mode clair/sombre complet dans l’administration, mémorisé dans le navigateur.
+- Notifications e-mail Resend pour les inscriptions et doléances, avec lien vers l’onglet admin correspondant.
+- PWA installable, service worker et cache du shell statique.
 
-## Déploiement recommandé
+## Déploiement
 
-### Backend sur Render
+### Backend Render
 
-Le dossier racine contient `render.yaml`, `Procfile` et `requirements.txt`.
-
-Variables Render :
+Le dossier racine contient `render.yaml`, `Procfile` et `requirements.txt`. Variables Render :
 
 ```env
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/DB?sslmode=require
 SECRET_KEY=une-cle-secrete-longue
-FRONTEND_ORIGIN=https://votre-frontend.vercel.app
+FRONTEND_ORIGIN=https://anyama-proxy.vercel.app
+ADMIN_EMAIL=adresse-admin@example.com
+ADMIN_PASSWORD=mot-de-passe-admin
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+RESEND_FROM_EMAIL=onboarding@resend.dev
 ```
+
+`RESEND_API_KEY` ne doit jamais être copié dans le frontend, le dépôt ou un fichier public. Si une clé est exposée, elle doit être révoquée et remplacée.
 
 Render utilise `gunicorn app:app` et vérifie `/health`.
 
-### Frontend sur Vercel
+### Frontend Vercel
 
-Importer le même dépôt et choisir `frontend` comme **Root Directory**. Le dossier est statique et ne nécessite pas de build.
+Importer le dépôt et choisir `frontend` comme **Root Directory**. Le frontend est statique et ne nécessite pas de build. `frontend/app.js` utilise des routes relatives et `frontend/vercel.json` relaie vers Render : `/api/*`, `/admin/*`, `/static/*` et `/health`.
 
-Après création du service Render, modifier `frontend/app.js` :
+Les URLs publiques sont :
 
-```js
-const API_BASE = 'https://votre-api.onrender.com';
-```
+- site : `https://anyama-proxy.vercel.app/` ;
+- retrait : `https://anyama-proxy.vercel.app/retrait.html` ;
+- connexion admin : `https://anyama-proxy.vercel.app/admin/login` ;
+- dashboard : `https://anyama-proxy.vercel.app/admin`.
 
-Le site public est `https://anyama-proxy.vercel.app/`. Le backend Render reste utilisé uniquement comme API et espace d’administration. La page publique de retrait est intégrée dans la landing page à l’ancre `#retrait` et envoie les demandes à `/api/removal-requests`; l’administrateur les traite ensuite depuis `/admin`.
+## Administration et retrait
 
-Pour éviter une nouvelle compilation, on peut aussi injecter `window.ANYAMA_API_URL` dans la page avant `app.js`.
+Les inscriptions valides sont enregistrées avec `is_approved=true` et `status=approved`, puis peuvent apparaître immédiatement dans l’annuaire. L’administrateur peut les rechercher, les publier, les désactiver ou les retirer.
+
+Une doléance est créée par `POST /api/removal-requests` avec le nom du demandeur, son numéro, l’artisan concerné et un motif facultatif. L’administrateur peut accepter ou refuser la demande. Un retrait passe le profil à `status=withdrawn` et `is_approved=false` sans supprimer automatiquement la ligne de base.
+
+Les notifications Resend ouvrent le dashboard avec `?tab=artisans` ou `?tab=removals`. L’authentification reste obligatoire.
+
+## Pages légales et spécifications
+
+Les documents publics sont dans `frontend/legal/` :
+
+- `mentions-legales.html` ;
+- `politique-confidentialite.html` ;
+- `cgu.html`.
+
+Le cahier des charges à jour est dans `cahier-de-charge.md`.
 
 ## Développement local
 
@@ -53,8 +74,6 @@ pip install -r requirements.txt
 python app.py
 ```
 
-L’ancienne interface Flask server-rendered reste disponible pour compatibilité. Le frontend Vercel est dans `frontend/`.
-
 ## Tests
 
 ```bash
@@ -64,35 +83,20 @@ pytest -q
 ## Structure
 
 ```text
-app.py                         # Flask, modèle, API CORS
-render.yaml                    # service Render
-frontend/index.html            # frontend Vercel
-frontend/app.js                # API, thème, PWA, validation
-frontend/styles.css            # design orange clair/sombre
-frontend/manifest.webmanifest  # installation PWA
-frontend/sw.js                 # cache offline du shell
-frontend/assets/               # assets AKATech
+app.py                         # Flask, modèles, API, notifications Resend
+render.yaml                    # service Render et variables attendues
+cahier-de-charge.md            # spécification fonctionnelle à jour
+frontend/index.html            # landing page Vercel
+frontend/retrait.html          # page publique de retrait
+frontend/app.js                # API, recherche, formulaires, PWA
+frontend/styles.css            # design clair/sombre
+frontend/vercel.json            # façade publique vers Render
+frontend/legal/                # documents légaux
+frontend/assets/               # logos et assets
 ```
 
-## Mise à jour formulaire et identité
-
-Le logo fourni `anyama-proxy-logo.png` est maintenant utilisé dans le header, le footer et comme icône PWA. Le formulaire utilise séparément **Prénom** et **Nom**. Le métier est choisi dans une liste dynamique comprenant les métiers déjà enregistrés ; l’option **Autre métier…** permet d’en saisir un nouveau, qui sera ensuite proposé aux prochains utilisateurs. La zone d’intervention a été retirée. Le champ **Service proposé** est facultatif. Le formulaire exige toujours au moins un numéro parmi Téléphone et WhatsApp.
-
-## Administration et retrait de profil
-
-Les inscriptions publiques sont enregistrées et publiées automatiquement après validation du formulaire. Le quartier est obligatoire et est stocké dans `artisans.zone`. L’interface d’administration est disponible sur `/admin/login` et protège le tableau de bord par `ADMIN_EMAIL` et `ADMIN_PASSWORD_HASH`. Pour générer le hash sans afficher le mot de passe, lancer `python create_admin_hash.py`, puis copier les deux variables dans Render.
-
-La page `/retrait` permet de déposer une doléance avec nom, numéro, artisan concerné et motif facultatif. Le modérateur peut traiter ou refuser la demande. Un retrait passe le profil en `status=withdrawn` et `is_approved=false` sans supprimer la ligne de base de données.
-
-Le script `seed.py` est idempotent : il supprime uniquement les anciennes fiches de démonstration nommées « Roland » et « Jean (Monsieur) » dans les zones « Ferraille » et « Carrefour Ferraille », puis ajoute le contact de démonstration Fofana uniquement si la base est vide. En production, exécuter `python seed.py` avec `DATABASE_URL` Neon configurée ; ne pas activer de reset global afin de préserver les inscriptions réelles.
-
-## Icône favicon / PWA
-
-La nouvelle icône carrée fournie est utilisée dans `frontend/assets/favicon.ico`, `icon-192.png` et `icon-512.png`. Le frontend référence `favicon.ico`, le manifeste PWA utilise les deux tailles PNG et le service worker les met en cache.
-
-
-
+**Dernière mise à jour : 20 septembre 2026.**
 git add .
-git commit -m "derniere version1hjnjkbb"
+git commit -m "derniere version1hjnjkbkkkkb"
 
 git push -u origin main
