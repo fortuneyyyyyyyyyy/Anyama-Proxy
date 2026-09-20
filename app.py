@@ -59,7 +59,7 @@ class RemovalRequest(db.Model):
 
 
 def admin_configured():
-    return bool(os.getenv("ADMIN_EMAIL") and os.getenv("ADMIN_PASSWORD_HASH"))
+    return bool(os.getenv("ADMIN_EMAIL") and (os.getenv("ADMIN_PASSWORD") or os.getenv("ADMIN_PASSWORD_HASH")))
 
 
 def admin_logged_in():
@@ -186,8 +186,12 @@ def create_app(test_config=None):
         if request.method == "POST":
             email = str(request.form.get("email", "")).strip().lower()
             password = str(request.form.get("password", ""))
-            password_hash = os.getenv("ADMIN_PASSWORD_HASH", "")
-            valid = admin_configured() and hmac.compare_digest(email, os.getenv("ADMIN_EMAIL", "").strip().lower()) and check_password_hash(password_hash, password)
+            configured_password = os.getenv("ADMIN_PASSWORD") or os.getenv("ADMIN_PASSWORD_HASH", "")
+            if configured_password.startswith(("scrypt:", "pbkdf2:", "argon2:")):
+                password_valid = check_password_hash(configured_password, password)
+            else:
+                password_valid = hmac.compare_digest(configured_password, password)
+            valid = admin_configured() and hmac.compare_digest(email, os.getenv("ADMIN_EMAIL", "").strip().lower()) and password_valid
             if valid:
                 session.clear()
                 session["admin_authenticated"] = True
