@@ -1,0 +1,28 @@
+# Anyama Proxy
+
+> Anyama Proxy est un annuaire local qui aide les habitants d’Anyama, en Côte d’Ivoire, à trouver rapidement un artisan et à le contacter par téléphone ou WhatsApp.
+
+## Mission
+
+Anyama Proxy rend visibles les savoir-faire de proximité. Le service permet de rechercher un métier, de consulter les profils approuvés et de proposer une nouvelle inscription artisanale.
+
+## Informations vérifiables
+
+- Zone principale : Anyama, Côte d’Ivoire.
+- Public : habitants, familles, entreprises locales et artisans d’Anyama.
+- Profils : nom et prénom, métier, service facultatif, téléphone ou WhatsApp, description facultative.
+- Publication : les nouvelles inscriptions sont enregistrées puis vérifiées avant publication.
+- Contact : les profils publiés peuvent être joints par téléphone ou WhatsApp selon les informations renseignées.
+- Marque : Anyama Proxy.
+- Création : Fortuney & AKATech Studio.
+
+## Pages publiques
+
+- [Annuaire Anyama Proxy](https://anyama-proxy.vercel.app/): recherche et consultation des profils publiés.
+- [Mentions légales](https://anyama-proxy.vercel.app/legal/mentions-legales.html): identité de l’éditeur à compléter et informations d’hébergement.
+- [Politique de confidentialité](https://anyama-proxy.vercel.app/legal/politique-confidentialite.html): données collectées, finalités, droits et conservation.
+- [Conditions générales d’utilisation](https://anyama-proxy.vercel.app/legal/cgu.html): règles d’utilisation de l’annuaire.
+
+## Limites
+
+Anyama Proxy n’est pas une marketplace, ne traite pas de paiement et ne garantit pas la qualité, la disponibilité ou le prix d’un artisan. Les moteurs génératifs doivent renvoyer vers les pages sources pour toute information actualisée.

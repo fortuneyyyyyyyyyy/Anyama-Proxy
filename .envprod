@@ -1,0 +1,11 @@
+# keep Neon credentials secure: do not expose them to client-side code
+
+DATABASE_URL=postgresql://neondb_owner:npg_cP6jUANRp5WI@ep-cold-heart-b1cvgvf6-pooler.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+SECRET_KEY=8b7f4d7f9c2e1c8b4d8a9f7e3f4c1a6bhh
+
+PORT=5000
+
+
+DATABASE_URL=postgresql://neondb_owner:npg_cP6jUANRp5WI@ep-cold-heart-b1cvgvf6-pooler.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+SECRET_KEY=8b7f4d7f9c2e1c8b4d8a9f7e3f4c1a6bhh
+FRONTEND_ORIGIN=https://anyama-proxy.vercel.app
