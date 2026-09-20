@@ -1,4 +1,5 @@
-const API_BASE = (window.ANYAMA_API_URL || 'https://anyama-proxy-api.onrender.com').replace(/\/$/, '');
+const API_BASE = 'https://anyama-proxy-api.onrender.com';
+
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 let deferredInstallPrompt;
