@@ -1,4 +1,4 @@
-const API_BASE = 'https://anyama-proxy-api.onrender.com';
+const API_BASE = 'https://anyama-proxy.onrender.com';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
