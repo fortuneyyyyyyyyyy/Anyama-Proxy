@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}Connexion admin — Anyama Proxy{% endblock %}
+{% block content %}
+<section class="admin-shell narrow"><p class="eyebrow">ESPACE PRIVÉ</p><h1>Connexion administrateur</h1><p>Accès réservé à l’équipe de modération.</p><form method="post" class="admin-form"><label>Email<input name="email" type="email" required autocomplete="username"></label><label>Mot de passe<input name="password" type="password" required autocomplete="current-password"></label><button type="submit">Se connecter</button></form>{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="flash {{ category }}">{{ message }}</p>{% endfor %}{% endwith %}</section>
+{% endblock %}

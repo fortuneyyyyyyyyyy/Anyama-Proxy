@@ -3,6 +3,7 @@ __pycache__/
 .pytest_cache/
 *.pyc
 .env
+.envprod
 *.db
 instance/
 Footer.jsx

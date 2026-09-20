@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}Demander le retrait — Anyama Proxy{% endblock %}
+{% block content %}
+<section class="admin-shell narrow"><p class="eyebrow">VOS DONNÉES, VOS CHOIX</p><h1>Demander le retrait d’un profil</h1><p>Une doléance est envoyée à l’administrateur. Le profil reste conservé dans l’historique mais peut être retiré de l’annuaire public après vérification.</p><form method="post" class="admin-form"><label>Votre nom<input name="requester_name" required value="{{ form.get('requester_name', '') }}"></label><label>Votre numéro<input name="requester_phone" type="tel" required value="{{ form.get('requester_phone', '') }}"></label><label>Nom de l’artisan concerné<input name="artisan_name" required value="{{ form.get('artisan_name', '') }}"></label><label>Motif <span class="optional">(facultatif)</span><textarea name="reason" rows="4">{{ form.get('reason', '') }}</textarea></label><button type="submit">Envoyer la doléance</button></form>{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="flash {{ category }}">{{ message }}</p>{% endfor %}{% endwith %}</section>
+{% endblock %}
