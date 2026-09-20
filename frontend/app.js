@@ -27,6 +27,11 @@ document.querySelectorAll('.morph-panel').forEach(panel => {
   });
 });
 
+document.addEventListener('pointerdown', event => {
+  if (event.target.closest('.morph-panel')) return;
+  document.querySelectorAll('.morph-panel[open]').forEach(panel => panel.removeAttribute('open'));
+});
+
 
 function initSpringMorphButtons() {
   const stiffness = 0.18;

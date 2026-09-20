@@ -113,3 +113,21 @@ html[data-theme="light"] .legal-logo { content: url('./assets/anyama-proxy-logo-
   padding: 10px;
   justify-content: center;
 }
+
+
+/* The AKATech preview is only the supplied transparent WebP: no card shell. */
+.footer-studio-credit .footer-hover-credit {
+  min-width: 0;
+  width: 104px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.footer-studio-credit .footer-hover-credit img {
+  width: 104px;
+  height: 104px;
+  border-radius: 0;
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,.14));
+}
