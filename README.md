@@ -82,9 +82,7 @@ La nouvelle icône carrée fournie est utilisée dans `frontend/assets/favicon.i
 
 
 
-git init
 git add .
-git commit -m "first commit"
-git branch -M main
-git remote add origin https://github.com/fortuneyyyyyyyyyy/Anyama-Proxy.git
+git commit -m "g"
+
 git push -u origin main

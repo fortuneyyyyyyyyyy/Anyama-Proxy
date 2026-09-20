@@ -50,3 +50,8 @@ Les champs `[À COMPLÉTER]` des mentions légales doivent être remplacés par 
 ## Correction finale header / landing / footer
 
 Le logo horizontal fourni est affiché sans fusion sombre incorrecte en mode clair, et reste lisible en mode sombre. Le header contient maintenant les sections Accueil, Annuaire, Comment ça marche et Inscrire mon activité. Une section « Comment ça marche ? » en trois étapes a été ajoutée à la landing page. Les liens Mentions légales, Confidentialité et CGU sont retirés du header et présents dans le footer uniquement.
+
+
+## Correction favicon / hero
+
+Le visuel AKATech au survol du hero et sa logique tactile ont été supprimés. L’orange dominant de l’icône fournie a été mesuré à `#f82000`, puis appliqué aux variables d’accent du frontend, au fallback Flask et au `theme_color` PWA. Les icônes 192×192, 512×512 et ICO ont été régénérées ; le service worker utilise le cache `anyama-proxy-v5`.

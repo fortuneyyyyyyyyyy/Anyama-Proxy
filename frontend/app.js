@@ -17,5 +17,4 @@ $('#search-form').addEventListener('submit', event => { event.preventDefault(); 
 $('#registration-form').addEventListener('submit', submitRegistration); $$('#registration-form input, #registration-form select').forEach(input => input.addEventListener('input', updateSubmitState));
 $('#category-select').addEventListener('change', event => { $('#custom-category-wrap').hidden = event.target.value !== '__other__'; updateSubmitState(); });
 $$('[data-scroll]').forEach(button => button.addEventListener('click', () => $(button.dataset.scroll).scrollIntoView({behavior:'smooth'})));
-$('.hero-visual').addEventListener('touchstart', () => $('.hero-visual').classList.toggle('touch-reveal'), {passive: true});
 $('#year').textContent = new Date().getFullYear(); initTheme(); initPWA(); lucide.createIcons(); Promise.all([loadMeta(), loadArtisans()]);
