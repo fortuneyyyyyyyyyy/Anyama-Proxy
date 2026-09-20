@@ -458,3 +458,18 @@ html[data-theme="dark"] .search-panel select,html[data-theme="dark"] .registrati
 .artisan-card-skeleton{pointer-events:none;overflow:hidden}.skeleton-row{display:flex;justify-content:space-between;align-items:center}.skeleton{display:block;position:relative;overflow:hidden;background:linear-gradient(100deg,var(--line) 25%,color-mix(in srgb,var(--surface) 65%,white) 50%,var(--line) 75%);background-size:220% 100%;animation:skeleton-shimmer 1.35s ease-in-out infinite;border-radius:8px}.skeleton::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.24),transparent);transform:translateX(-100%);animation:skeleton-glint 1.35s ease-in-out infinite}.skeleton-avatar{width:48px;height:48px;border-radius:50%}.skeleton-status{width:78px;height:12px}.skeleton-category{width:92px;height:10px;margin-top:25px}.skeleton-title{width:72%;height:22px;margin-top:10px}.skeleton-service{width:88%;height:13px;margin-top:9px}.skeleton-location{width:62%;height:11px;margin-top:16px}.skeleton-description{width:100%;height:12px;margin-top:18px}.skeleton-description.short{width:66%;margin-top:8px}.skeleton-button{width:86px;height:34px;border-radius:999px;margin-top:auto}@keyframes skeleton-shimmer{0%{background-position:200% 0}100%{background-position:-20% 0}}@keyframes skeleton-glint{100%{transform:translateX(100%)}}@media(prefers-reduced-motion:reduce){.skeleton,.skeleton::after{animation:none}}
 
 .pagination{display:flex;justify-content:center;align-items:center;gap:8px;margin:30px 0 0}.pagination-button{min-width:38px;height:38px;padding:0 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font:500 12px 'DM Mono';cursor:pointer;transition:background .2s,border-color .2s,color .2s,transform .2s}.pagination-button:hover:not(:disabled),.pagination-button:focus-visible{border-color:var(--accent);transform:translateY(-1px)}.pagination-button.is-active{background:var(--accent);border-color:var(--accent);color:#fff}.pagination-button:disabled{opacity:.35;cursor:not-allowed}@media(max-width:700px){.pagination{gap:6px}.pagination-button{min-width:34px;height:34px;font-size:11px}}
+
+/* Thème clair : les sections de preuve locale et d’inscription restent lumineuses. */
+html[data-theme="light"] .trust-bar{background:var(--surface);color:var(--ink);border-top:1px solid var(--line);border-bottom:1px solid var(--line);box-shadow:0 12px 32px rgba(23,18,14,.04)}
+html[data-theme="light"] .trust-kicker{color:var(--muted)}
+html[data-theme="light"] .trust-metric{border-color:var(--line);background:var(--bg)}
+html[data-theme="light"] .trust-value strong{color:var(--ink)}
+html[data-theme="light"] .trust-value small{color:var(--muted)}
+html[data-theme="light"] .join-cta{background:var(--surface);color:var(--ink);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+html[data-theme="light"] .join-cta>div>p:not(.eyebrow){color:var(--muted)}
+html[data-theme="light"] .registration-panel{background:var(--bg);border-color:var(--line);color:var(--ink)}
+html[data-theme="light"] .registration-panel summary{color:var(--accent-strong)}
+html[data-theme="light"] .registration-panel[open] summary{border-color:var(--line)}
+html[data-theme="light"] .registration-panel label{color:var(--muted)}
+html[data-theme="light"] .registration-panel input,html[data-theme="light"] .registration-panel select,html[data-theme="light"] .registration-panel textarea{border-color:var(--line);background:var(--surface);color:var(--ink)}
+html[data-theme="light"] .registration-panel .form-hint,html[data-theme="light"] .registration-panel .form-feedback{color:var(--muted)}
