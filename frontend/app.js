@@ -17,4 +17,27 @@ $('#search-form').addEventListener('submit', event => { event.preventDefault(); 
 $('#registration-form').addEventListener('submit', submitRegistration); $$('#registration-form input, #registration-form select').forEach(input => input.addEventListener('input', updateSubmitState));
 $('#category-select').addEventListener('change', event => { $('#custom-category-wrap').hidden = event.target.value !== '__other__'; updateSubmitState(); });
 $$('[data-scroll]').forEach(button => button.addEventListener('click', () => $(button.dataset.scroll).scrollIntoView({behavior:'smooth'})));
+document.querySelectorAll('.morph-panel').forEach(panel => {
+  panel.addEventListener('toggle', () => {
+    if (!panel.open) return;
+    document.querySelectorAll('.morph-panel').forEach(other => {
+      if (other !== panel) other.removeAttribute('open');
+    });
+  });
+});
+
+const studioCard = document.querySelector('.footer-hover-credit');
+const studioLink = document.querySelector('.footer-studio-link');
+if (studioCard && studioLink) {
+  const reveal = () => studioCard.classList.add('is-visible');
+  const hide = () => studioCard.classList.remove('is-visible');
+  studioLink.addEventListener('mouseenter', reveal);
+  studioLink.addEventListener('focus', reveal);
+  studioLink.addEventListener('mouseleave', hide);
+  studioLink.addEventListener('blur', hide);
+  studioLink.addEventListener('pointerdown', reveal);
+  studioLink.addEventListener('pointerup', hide);
+  studioLink.addEventListener('pointerleave', hide);
+}
+
 $('#year').textContent = new Date().getFullYear(); initTheme(); initPWA(); lucide.createIcons(); Promise.all([loadMeta(), loadArtisans()]);
