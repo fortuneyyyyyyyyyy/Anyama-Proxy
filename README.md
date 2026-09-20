@@ -93,6 +93,6 @@ La nouvelle icône carrée fournie est utilisée dans `frontend/assets/favicon.i
 
 
 git add .
-git commit -m "derniere version1hjnjkb"
+git commit -m "derniere version1hjnjkbb"
 
 git push -u origin main
