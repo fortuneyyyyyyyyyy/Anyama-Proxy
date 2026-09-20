@@ -40,8 +40,10 @@ class Artisan(db.Model):
 
     @property
     def whatsapp_url(self):
-        number = "".join(ch for ch in (self.whatsapp or self.phone) if ch.isdigit() or ch == "+")
-        return f"https://wa.me/{number.replace('+', '')}" if number else "#"
+        if not self.whatsapp:
+            return None
+        number = "".join(ch for ch in self.whatsapp if ch.isdigit() or ch == "+")
+        return f"https://wa.me/{number.replace('+', '')}" if number else None
 
 
 class RemovalRequest(db.Model):
@@ -181,6 +183,23 @@ def create_app(test_config=None):
         categories = list(dict.fromkeys(CATEGORIES + sorted(saved_categories)))
         return jsonify({"success": True, "categories": categories, "zones": ZONES})
 
+    @app.route("/api/removal-requests", methods=["POST", "OPTIONS"])
+    def api_removal_request():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        payload = request.get_json(silent=True) or {}
+        requester_name = str(payload.get("requester_name", "")).strip()
+        requester_phone = str(payload.get("requester_phone", "")).strip()
+        artisan_name = str(payload.get("artisan_name", "")).strip()
+        if not requester_name or not requester_phone or not artisan_name:
+            return jsonify({"success": False, "error": "Nom, numéro et artisan concerné sont obligatoires."}), 400
+        artisan = Artisan.query.filter(Artisan.name.ilike(artisan_name)).first()
+        db.session.add(RemovalRequest(requester_name=requester_name, requester_phone=requester_phone,
+                                       artisan_name=artisan_name, artisan_id=artisan.id if artisan else None,
+                                       reason=str(payload.get("reason", "")).strip() or None))
+        db.session.commit()
+        return jsonify({"success": True, "message": "Votre demande de retrait a été envoyée."}), 201
+
     @app.route("/admin/login", methods=["GET", "POST"])
     def admin_login():
         if request.method == "POST":
@@ -264,7 +283,8 @@ def create_app(test_config=None):
     with app.app_context():
         db.create_all()
         ensure_schema()
-        seed_artisans()
+        if not os.getenv("DATABASE_URL"):
+            seed_artisans()
     return app
 
 

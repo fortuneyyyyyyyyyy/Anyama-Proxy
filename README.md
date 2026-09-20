@@ -40,6 +40,8 @@ Après création du service Render, modifier `frontend/app.js` :
 const API_BASE = 'https://votre-api.onrender.com';
 ```
 
+Le site public est `https://anyama-proxy.vercel.app/`. Le backend Render reste utilisé uniquement comme API et espace d’administration. La page publique de retrait est intégrée dans la landing page à l’ancre `#retrait` et envoie les demandes à `/api/removal-requests`; l’administrateur les traite ensuite depuis `/admin`.
+
 Pour éviter une nouvelle compilation, on peut aussi injecter `window.ANYAMA_API_URL` dans la page avant `app.js`.
 
 ## Développement local
@@ -91,6 +93,6 @@ La nouvelle icône carrée fournie est utilisée dans `frontend/assets/favicon.i
 
 
 git add .
-git commit -m "derniere versionADMIN1"
+git commit -m "derniere admon"
 
 git push -u origin main
