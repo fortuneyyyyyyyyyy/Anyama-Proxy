@@ -1,5 +1,64 @@
 {% extends "base.html" %}
 {% block title %}Administration — Anyama Proxy{% endblock %}
 {% block content %}
-<section class="admin-shell"><div class="admin-heading"><div><p class="eyebrow">MODÉRATION</p><h1>Tableau de bord</h1><p>{{ artisans|length }} profils · {{ removal_requests|length }} doléances</p></div><form method="post" action="{{ url_for('admin_logout') }}"><button class="secondary" type="submit">Se déconnecter</button></form></div><div class="admin-grid"><section class="admin-card"><h2>Artisans</h2><div class="admin-table">{% for artisan in artisans %}<article class="admin-row"><div><strong>{{ artisan.name }}</strong><span>{{ artisan.category }} · {{ artisan.zone }}</span><small>{{ artisan.phone }}</small></div><span class="badge {{ artisan.status }}">{{ artisan.status }}</span><div class="row-actions"><form method="post" action="{{ url_for('admin_artisan_status', artisan_id=artisan.id) }}"><input type="hidden" name="action" value="approve"><button type="submit">Publier</button></form><form method="post" action="{{ url_for('admin_artisan_status', artisan_id=artisan.id) }}"><input type="hidden" name="action" value="withdraw"><button class="danger" type="submit">Retirer</button></form></div></article>{% else %}<p>Aucun profil.</p>{% endfor %}</div></section><section class="admin-card"><h2>Doléances de retrait</h2><div class="admin-table">{% for item in removal_requests %}<article class="admin-row"><div><strong>{{ item.artisan_name }}</strong><span>Demandé par {{ item.requester_name }} · {{ item.requester_phone }}</span><small>{{ item.reason or 'Aucun motif indiqué' }}</small></div><span class="badge {{ item.status }}">{{ removal_statuses.get(item.status, item.status) }}</span>{% if item.status == 'pending' %}<div class="row-actions"><form method="post" action="{{ url_for('admin_removal_status', request_id=item.id) }}"><input type="hidden" name="action" value="process"><button class="danger" type="submit">Retirer du public</button></form><form method="post" action="{{ url_for('admin_removal_status', request_id=item.id) }}"><input type="hidden" name="action" value="reject"><button class="secondary" type="submit">Refuser</button></form></div>{% endif %}</article>{% else %}<p>Aucune doléance.</p>{% endfor %}</div></section></div></section>
+<section class="admin-shell admin-body" data-admin-dashboard>
+  <div class="admin-heading">
+    <div>
+      <p class="eyebrow">MODÉRATION / ESPACE PRIVÉ</p>
+      <h1>Tableau de bord</h1>
+      <p><strong>{{ artisans|length }}</strong> profils · <strong>{{ removal_requests|length }}</strong> doléances</p>
+    </div>
+    <div class="admin-heading-actions">
+      <button class="admin-theme-toggle" type="button" aria-label="Activer le mode sombre"><span class="theme-icon">◐</span><span class="theme-label">Mode sombre</span></button>
+      <form method="post" action="{{ url_for('admin_logout') }}"><button class="secondary" type="submit">Se déconnecter</button></form>
+    </div>
+  </div>
+
+  <div class="admin-tabs" role="tablist" aria-label="Sections de modération">
+    <button class="admin-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="artisans-panel" data-tab-target="artisans-panel">Artisans <span>{{ artisans|length }}</span></button>
+    <button class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="removals-panel" data-tab-target="removals-panel">Doléances de retrait <span>{{ removal_requests|length }}</span></button>
+  </div>
+
+  <section class="admin-panel is-active" id="artisans-panel" role="tabpanel">
+    <div class="admin-card">
+      <div class="admin-card-heading"><div><p class="eyebrow">ANNUAIRE</p><h2>Artisans</h2></div><p class="admin-result-count" data-result-count>{{ artisans|length }} résultat(s)</p></div>
+      <label class="admin-search"><span aria-hidden="true">⌕</span><input type="search" id="artisan-search" placeholder="Rechercher par nom, métier, quartier ou téléphone…" aria-label="Rechercher un artisan"></label>
+      <div class="admin-table admin-artisans-list" id="artisans-list">
+        {% for artisan in artisans %}
+        <article class="admin-row admin-artisan-item" data-search="{{ (artisan.name ~ ' ' ~ artisan.category ~ ' ' ~ artisan.zone ~ ' ' ~ artisan.phone ~ ' ' ~ artisan.service)|lower }}">
+          <div class="admin-person"><span class="admin-avatar">{{ artisan.name[:1] }}</span><div><strong>{{ artisan.name }}</strong><span>{{ artisan.category }} · {{ artisan.zone }}</span><small>{{ artisan.phone or 'Téléphone non renseigné' }}</small></div></div>
+          <span class="badge {{ artisan.status }}">{{ artisan.status }}</span>
+          <div class="row-actions"><form method="post" action="{{ url_for('admin_artisan_status', artisan_id=artisan.id) }}"><input type="hidden" name="action" value="approve"><button type="submit">Publier</button></form><form method="post" action="{{ url_for('admin_artisan_status', artisan_id=artisan.id) }}"><input type="hidden" name="action" value="withdraw"><button class="danger" type="submit">Retirer</button></form></div>
+        </article>
+        {% else %}<p class="admin-empty">Aucun profil.</p>{% endfor %}
+      </div>
+      <div class="admin-pagination" id="artisan-pagination" aria-label="Pagination des artisans"></div>
+    </div>
+  </section>
+
+  <section class="admin-panel" id="removals-panel" role="tabpanel" hidden>
+    <div class="admin-card">
+      <div class="admin-card-heading"><div><p class="eyebrow">DEMANDES ENTRANTES</p><h2>Doléances de retrait</h2></div><p class="admin-result-count">{{ removal_requests|length }} demande(s)</p></div>
+      <div class="admin-table">
+        {% for item in removal_requests %}
+        <article class="admin-row"><div class="admin-person"><span class="admin-avatar admin-avatar-soft">{{ item.artisan_name[:1] }}</span><div><strong>{{ item.artisan_name }}</strong><span>Demandé par {{ item.requester_name }} · {{ item.requester_phone }}</span><small>{{ item.reason or 'Aucun motif indiqué' }}</small></div></div><span class="badge {{ item.status }}">{{ removal_statuses.get(item.status, item.status) }}</span>{% if item.status == 'pending' %}<div class="row-actions"><form method="post" action="{{ url_for('admin_removal_status', request_id=item.id) }}"><input type="hidden" name="action" value="process"><button class="danger" type="submit">Retirer du public</button></form><form method="post" action="{{ url_for('admin_removal_status', request_id=item.id) }}"><input type="hidden" name="action" value="reject"><button class="secondary" type="submit">Refuser</button></form></div>{% endif %}</article>
+        {% else %}<p class="admin-empty">Aucune doléance.</p>{% endfor %}
+      </div>
+    </div>
+  </section>
+</section>
+<script>
+(() => {
+  const root = document.querySelector('[data-admin-dashboard]');
+  const tabs = [...root.querySelectorAll('.admin-tab')];
+  const panels = [...root.querySelectorAll('.admin-panel')];
+  tabs.forEach(tab => tab.addEventListener('click', () => { tabs.forEach(item => { const active = item === tab; item.classList.toggle('is-active', active); item.setAttribute('aria-selected', active); }); panels.forEach(panel => { const active = panel.id === tab.dataset.tabTarget; panel.classList.toggle('is-active', active); panel.hidden = !active; }); }));
+  const items = [...root.querySelectorAll('.admin-artisan-item')];
+  const search = root.querySelector('#artisan-search'); const pagination = root.querySelector('#artisan-pagination'); const count = root.querySelector('[data-result-count]'); let page = 1;
+  const pageSize = () => window.matchMedia('(max-width: 700px)').matches ? 6 : 10;
+  function render() { const term = (search.value || '').trim().toLowerCase(); const filtered = items.filter(item => item.dataset.search.includes(term)); const size = pageSize(); const pages = Math.max(1, Math.ceil(filtered.length / size)); page = Math.min(page, pages); items.forEach(item => item.hidden = true); filtered.slice((page - 1) * size, page * size).forEach(item => item.hidden = false); count.textContent = `${filtered.length} résultat(s)`; pagination.innerHTML = pages > 1 ? `<button type="button" ${page === 1 ? 'disabled' : ''} data-page="${page - 1}">←</button><span>Page ${page} / ${pages}</span><button type="button" ${page === pages ? 'disabled' : ''} data-page="${page + 1}">→</button>` : ''; pagination.querySelectorAll('button').forEach(button => button.addEventListener('click', () => { page = Number(button.dataset.page); render(); })); }
+  search.addEventListener('input', () => { page = 1; render(); }); window.addEventListener('resize', render); render();
+  const themeButton = root.querySelector('.admin-theme-toggle'); const saved = localStorage.getItem('admin-theme') || 'light'; root.dataset.theme = saved; themeButton.addEventListener('click', () => { const next = root.dataset.theme === 'dark' ? 'light' : 'dark'; root.dataset.theme = next; localStorage.setItem('admin-theme', next); themeButton.querySelector('.theme-label').textContent = next === 'dark' ? 'Mode clair' : 'Mode sombre'; themeButton.setAttribute('aria-label', next === 'dark' ? 'Activer le mode clair' : 'Activer le mode sombre'); }); if (saved === 'dark') themeButton.querySelector('.theme-label').textContent = 'Mode clair';
+})();
+</script>
 {% endblock %}
