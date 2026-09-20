@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f82000">
+  <meta name="description" content="Demander le retrait d’un profil sur Anyama Proxy.">
+  <link rel="canonical" href="https://anyama-proxy.vercel.app/retrait.html">
+  <link rel="icon" type="image/x-icon" href="./assets/favicon.ico">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Retirer un profil — Anyama Proxy</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <a class="skip-link" href="#retrait-main">Aller au formulaire</a>
+  <header class="site-header">
+    <a class="brand" href="./index.html#top" aria-label="Anyama Proxy accueil"><img class="brand-logo" src="./assets/anyama-proxy-logo-light.png" alt="ANYAMA PROXY"></a>
+    <button class="mobile-menu-toggle" type="button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="site-navigation"><i data-lucide="menu"></i></button>
+    <nav id="site-navigation">
+      <a href="./index.html#top">Accueil</a>
+      <a href="./index.html#annuaire">Annuaire</a>
+      <a href="./retrait.html" aria-current="page">Retirer un profil</a>
+      <a href="./index.html#inscription">Inscrire mon activité <i data-lucide="arrow-up-right"></i></a>
+      <button class="icon-btn theme-toggle" type="button" aria-label="Changer de thème"><i data-lucide="sun"></i></button>
+    </nav>
+  </header>
+  <main id="retrait-main">
+    <section class="removal-page">
+      <div class="removal-page-intro">
+        <p class="eyebrow">VOS DONNÉES, VOS CHOIX</p>
+        <h1>Vous souhaitez<br><em>retirer un profil&nbsp;?</em></h1>
+        <p>Envoyez une demande publique. Notre équipe vérifie la demande et retire le profil de l’annuaire sans effacer son historique.</p>
+        <a class="back-link" href="./index.html#annuaire">← Retour à l’annuaire</a>
+      </div>
+      <form class="removal-form removal-page-form" id="removal-form">
+        <div class="form-grid">
+          <label>Votre nom *<input name="requester_name" required placeholder="Ex. Jean Kouassi"></label>
+          <label>Votre numéro *<input name="requester_phone" type="tel" required placeholder="07 00 00 00 00"></label>
+          <label class="full">Nom de l’artisan concerné *<input name="artisan_name" required placeholder="Ex. Fofana"></label>
+          <label class="full">Motif <span class="optional">(facultatif)</span><textarea name="reason" rows="5" placeholder="Expliquez votre demande si nécessaire…"></textarea></label>
+        </div>
+        <button class="morph-button dark" type="submit"><span>Envoyer ma demande</span><i data-lucide="send"></i></button>
+        <p class="form-feedback" id="removal-feedback" role="status"></p>
+      </form>
+    </section>
+  </main>
+  <footer class="site-footer">
+    <div class="footer-main"><a class="brand" href="./index.html#top"><img class="footer-logo" src="./assets/anyama-proxy-logo-light.png" alt="ANYAMA PROXY"></a><p>Le savoir-faire local,<br>rendu visible.</p><div class="footer-links"><a href="./index.html#annuaire">Trouver un artisan</a><a href="./index.html#inscription">Inscrire mon activité</a><a href="./retrait.html">Retirer un profil</a><a href="./legal/mentions-legales.html">Mentions légales</a><a href="./legal/politique-confidentialite.html">Confidentialité</a></div></div>
+    <div class="footer-bottom"><span>© <span id="year"></span> Anyama Proxy</span><span>Anyama, Côte d’Ivoire</span></div>
+  </footer>
+  <script src="./app.js" defer></script>
+</body>
+</html>

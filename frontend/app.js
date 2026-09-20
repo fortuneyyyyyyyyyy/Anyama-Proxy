@@ -52,10 +52,10 @@ function initMobileMenu() {
 }
 
 function initTheme() { const saved = localStorage.getItem('anyama-theme') || 'light'; document.documentElement.dataset.theme = saved; $('.theme-toggle').addEventListener('click', () => { const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'; document.documentElement.dataset.theme = next; localStorage.setItem('anyama-theme', next); $('.theme-toggle').innerHTML = `<i data-lucide="${next === 'light' ? 'sun' : 'moon'}"></i>`; lucide.createIcons(); }); }
-function initPWA() { window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); deferredInstallPrompt = event; $('#install-button').hidden = false; }); $('#install-button').addEventListener('click', async () => { if (!deferredInstallPrompt) return; deferredInstallPrompt.prompt(); await deferredInstallPrompt.userChoice; deferredInstallPrompt = null; $('#install-button').hidden = true; }); if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {}); }
-$('#search-form').addEventListener('submit', event => { event.preventDefault(); const params = new URLSearchParams(new FormData(event.currentTarget)); loadArtisans(params); document.querySelector('#annuaire').scrollIntoView({behavior: 'smooth'}); });
-$('#registration-form').addEventListener('submit', submitRegistration); $('#removal-form').addEventListener('submit', submitRemoval); $$('#registration-form input, #registration-form select').forEach(input => input.addEventListener('input', updateSubmitState));
-$('#category-select').addEventListener('change', event => { $('#custom-category-wrap').hidden = event.target.value !== '__other__'; updateSubmitState(); });
+function initPWA() { window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); deferredInstallPrompt = event; if ($('#install-button')) $('#install-button').hidden = false; }); $('#install-button')?.addEventListener('click', async () => { if (!deferredInstallPrompt) return; deferredInstallPrompt.prompt(); await deferredInstallPrompt.userChoice; deferredInstallPrompt = null; $('#install-button').hidden = true; }); if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {}); }
+$('#search-form')?.addEventListener('submit', event => { event.preventDefault(); const params = new URLSearchParams(new FormData(event.currentTarget)); loadArtisans(params); document.querySelector('#annuaire').scrollIntoView({behavior: 'smooth'}); });
+$('#registration-form')?.addEventListener('submit', submitRegistration); $('#removal-form')?.addEventListener('submit', submitRemoval); $$('#registration-form input, #registration-form select').forEach(input => input.addEventListener('input', updateSubmitState));
+$('#category-select')?.addEventListener('change', event => { $('#custom-category-wrap').hidden = event.target.value !== '__other__'; updateSubmitState(); });
 $$('[data-scroll]').forEach(button => button.addEventListener('click', () => $(button.dataset.scroll).scrollIntoView({behavior:'smooth'})));
 window.addEventListener('resize', () => { if (artisansCache.length) { const totalPages = Math.ceil(artisansCache.length / pageSize()); if (artisansPage > totalPages) artisansPage = totalPages; renderArtisans(); } });
 document.querySelectorAll('.morph-panel').forEach(panel => {
@@ -127,4 +127,4 @@ if (studioCard && studioLink) {
   studioLink.addEventListener('pointerleave', hide);
 }
 
-$('#year').textContent = new Date().getFullYear(); initMobileMenu(); initTheme(); initPWA(); lucide.createIcons(); initSpringMorphButtons(); Promise.all([loadMeta(), loadArtisans()]);
+$('#year') && ($('#year').textContent = new Date().getFullYear()); initMobileMenu(); initTheme(); initPWA(); lucide.createIcons(); if ($('#artisan-grid')) Promise.all([loadMeta(), loadArtisans()]);
