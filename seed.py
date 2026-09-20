@@ -8,9 +8,39 @@ app = create_app()
 with app.app_context():
     if Artisan.query.count() == 0:
         demo = [
-            {"name": "Fofana", "job": "Réparateur TV", "neighborhood": "Carrefour Ferraille", "phone": "05 54 13 49 01"},
-            {"name": "Roland", "job": "Coiffeur", "neighborhood": "Ferraille", "phone": "07 04 31 45 42"},
-            {"name": "Jean (Monsieur)", "job": "Coursier / Chauffeur", "neighborhood": "Carrefour Ferraille", "phone": "07 12 41 35 49"},
+            {
+                "name": "Fofana",
+                "service": "Réparation TV et électronique",
+                "category": "Électricité",
+                "zone": "Anyama Centre",
+                "phone": "0554134901",
+                "whatsapp": "0554134901",
+                "description": "Réparateur TV et dispositifs électroniques à Anyama.",
+                "is_approved": True,
+                "is_featured": False,
+            },
+            {
+                "name": "Roland",
+                "service": "Coiffure & soins",
+                "category": "Coiffure & beauté",
+                "zone": "Ferraille",
+                "phone": "0704314542",
+                "whatsapp": "0704314542",
+                "description": "Coiffeur local disponible pour coupes et soins.",
+                "is_approved": True,
+                "is_featured": False,
+            },
+            {
+                "name": "Jean (Monsieur)",
+                "service": "Coursier / chauffeur",
+                "category": "Autre",
+                "zone": "Carrefour Ferraille",
+                "phone": "0712413549",
+                "whatsapp": "0712413549",
+                "description": "Service de livraison et transport local rapide.",
+                "is_approved": True,
+                "is_featured": False,
+            },
         ]
         db.session.add_all(Artisan(**item) for item in demo)
         db.session.commit()
