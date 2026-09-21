@@ -34,16 +34,18 @@
       </div>
       <details class="morph-panel removal-panel">
         <summary><span>Demander le retrait d’un profil</span><i data-lucide="arrow-up-right"></i></summary>
-        <form class="removal-form removal-page-form" id="removal-form">
+        <form class="removal-form removal-page-form" id="removal-form" novalidate>
           <div class="form-grid">
             <label>Votre nom *<input name="requester_name" required placeholder="Ex. Jean Kouassi"></label>
             <label>Votre numéro *<input name="requester_phone" type="tel" required placeholder="07 00 00 00 00"></label>
             <label class="full">Nom de l’artisan concerné *<input name="artisan_name" required placeholder="Ex. Fofana"></label>
-            <label class="full">Motif <span class="optional">(facultatif)</span><textarea name="reason" rows="5" placeholder="Expliquez votre demande si nécessaire…"></textarea></label>
+            <label class="full">Motif <span class="optional">(facultatif)</span><textarea name="reason" rows="4" placeholder="Expliquez votre demande si nécessaire…"></textarea></label>
           </div>
-          <button class="morph-button submit" type="submit"><span>Envoyer ma demande</span><i data-lucide="send"></i></button>
+          <p class="form-hint"><i data-lucide="info"></i> Nom, téléphone et artisan concerné sont obligatoires. Le motif est facultatif.</p>
+          <button class="morph-button submit" type="submit" disabled><span>Envoyer ma demande</span><i data-lucide="send"></i></button>
           <p class="form-feedback" id="removal-feedback" role="status"></p>
         </form>
+
       </details>
     </section>
   </main>
