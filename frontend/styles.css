@@ -476,4 +476,61 @@ html[data-theme="light"] .registration-panel[open] summary{border-color:var(--li
 html[data-theme="light"] .registration-panel label{color:var(--muted)}
 html[data-theme="light"] .registration-panel input,html[data-theme="light"] .registration-panel select,html[data-theme="light"] .registration-panel textarea{border-color:var(--line);background:var(--surface);color:var(--ink)}
 html[data-theme="light"] .registration-panel .form-hint,html[data-theme="light"] .registration-panel .form-feedback{color:var(--muted)}
-.removal-page-form{display:block}.removal-page-form .form-grid{display:grid}.removal-page-form .morph-button{display:flex;width:max-content;margin:22px 0 0;clear:both}.removal-page-form .form-feedback{display:block;clear:both}
+.removal-page-form,
+.removal-form,
+.removal-panel form,
+.morph-panel.removal-panel form {
+  display: flex !important;
+  flex-direction: column !important;
+  grid-template-columns: 1fr !important;
+  width: 100% !important;
+}
+
+.removal-page-form .form-grid,
+.removal-form .form-grid,
+.removal-panel form .form-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  width: 100% !important;
+  gap: 16px !important;
+}
+
+.removal-page-form .morph-button,
+.removal-form .morph-button,
+.removal-panel form .morph-button,
+.morph-panel.removal-panel form .morph-button.submit {
+  display: inline-flex !important;
+  width: max-content !important;
+  max-width: 100% !important;
+  margin: 22px 0 0 0 !important;
+  align-self: flex-start !important;
+  grid-column: 1 / -1 !important;
+  border-radius: 999px !important;
+  height: auto !important;
+  aspect-ratio: auto !important;
+  padding: 14px 24px !important;
+}
+
+.removal-page-form .form-feedback,
+.removal-form .form-feedback,
+.removal-panel form .form-feedback {
+  display: block !important;
+  width: 100% !important;
+  margin-top: 12px !important;
+  clear: both !important;
+}
+
+@media (max-width: 520px) {
+  .removal-page-form .form-grid,
+  .removal-form .form-grid,
+  .removal-panel form .form-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .removal-page-form .morph-button,
+  .removal-form .morph-button,
+  .removal-panel form .morph-button,
+  .morph-panel.removal-panel form .morph-button.submit {
+    width: 100% !important;
+  }
+}
+
