@@ -476,3 +476,4 @@ html[data-theme="light"] .registration-panel[open] summary{border-color:var(--li
 html[data-theme="light"] .registration-panel label{color:var(--muted)}
 html[data-theme="light"] .registration-panel input,html[data-theme="light"] .registration-panel select,html[data-theme="light"] .registration-panel textarea{border-color:var(--line);background:var(--surface);color:var(--ink)}
 html[data-theme="light"] .registration-panel .form-hint,html[data-theme="light"] .registration-panel .form-feedback{color:var(--muted)}
+.removal-page-form{display:block}.removal-page-form .form-grid{display:grid}.removal-page-form .morph-button{display:flex;width:max-content;margin:22px 0 0;clear:both}.removal-page-form .form-feedback{display:block;clear:both}
