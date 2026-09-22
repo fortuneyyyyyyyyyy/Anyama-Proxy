@@ -6,13 +6,12 @@
     <div>
       <p class="eyebrow">MODÉRATION / ESPACE PRIVÉ</p>
       <h1>Tableau de bord</h1>
-      <p><strong>{{ artisans|length }}</strong> profils · <strong>{{ removal_requests|length }}</strong> doléances · <strong>{{ reports|length }}</strong> signalements</p>
+      <p><strong>{{ artisans|length }}</strong> profils · <strong>{{ reports|length }}</strong> signalements</p>
     </div>
   </div>
 
   <div class="admin-tabs" role="tablist" aria-label="Sections de modération">
     <button class="admin-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="artisans-panel" data-tab-target="artisans-panel">Artisans <span>{{ artisans|length }}</span></button>
-    <button class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="removals-panel" data-tab-target="removals-panel">Doléances de retrait <span>{{ removal_requests|length }}</span></button>
     <button class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="reports-panel" data-tab-target="reports-panel">Signalements <span>{{ reports|length }}</span></button>
   </div>
 
@@ -33,16 +32,6 @@
     </div>
   </section>
 
-  <section class="admin-panel" id="removals-panel" role="tabpanel" hidden>
-    <div class="admin-card">
-      <div class="admin-card-heading"><div><p class="eyebrow">DEMANDES ENTRANTES</p><h2>Doléances de retrait</h2></div><p class="admin-result-count">{{ removal_requests|length }} demande(s)</p></div>
-      <div class="admin-table">
-        {% for item in removal_requests %}
-        <article class="admin-row"><div class="admin-person"><span class="admin-avatar admin-avatar-soft">{{ item.artisan_name[:1] }}</span><div><strong>{{ item.artisan_name }}</strong><span>Demandé par {{ item.requester_name }} · {{ item.requester_phone }}</span><small>{{ item.reason or 'Aucun motif indiqué' }}</small></div></div><span class="badge {{ item.status }}">{{ removal_statuses.get(item.status, item.status) }}</span>{% if item.status == 'pending' %}<div class="row-actions"><form method="post" action="{{ url_for('admin_removal_status', request_id=item.id) }}"><input type="hidden" name="action" value="process"><button class="danger" type="submit">Retirer du public</button></form><form method="post" action="{{ url_for('admin_removal_status', request_id=item.id) }}"><input type="hidden" name="action" value="reject"><button class="secondary" type="submit">Refuser</button></form></div>{% endif %}</article>
-        {% else %}<p class="admin-empty">Aucune doléance.</p>{% endfor %}
-      </div>
-    </div>
-
   <section class="admin-panel" id="reports-panel" role="tabpanel" hidden>
     <div class="admin-card">
       <div class="admin-card-heading"><div><p class="eyebrow">CONFIANCE COMMUNAUTAIRE</p><h2>Signalements de profils</h2></div><p class="admin-result-count">{{ reports|length }} signalement(s)</p></div>
@@ -53,7 +42,6 @@
       </div>
     </div>
   </section>
-  </section>
 </section>
 <script>
 (() => {
@@ -62,7 +50,7 @@
   const panels = [...root.querySelectorAll('.admin-panel')];
   const activateTab = tab => { tabs.forEach(item => { const active = item === tab; item.classList.toggle('is-active', active); item.setAttribute('aria-selected', active); }); panels.forEach(panel => { const active = panel.id === tab.dataset.tabTarget; panel.classList.toggle('is-active', active); panel.hidden = !active; }); };
   tabs.forEach(tab => tab.addEventListener('click', () => activateTab(tab)));
-  const requestedTab = new URLSearchParams(window.location.search).get('tab'); if (requestedTab === 'removals') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'removals-panel')); if (requestedTab === 'reports') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'reports-panel')); if (requestedTab === 'artisans') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'artisans-panel'));
+  const requestedTab = new URLSearchParams(window.location.search).get('tab'); if (requestedTab === 'reports') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'reports-panel')); if (requestedTab === 'artisans') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'artisans-panel'));
   const items = [...root.querySelectorAll('.admin-artisan-item')];
   const search = root.querySelector('#artisan-search'); const pagination = root.querySelector('#artisan-pagination'); const count = root.querySelector('[data-result-count]'); let page = 1;
   const pageSize = () => window.matchMedia('(max-width: 700px)').matches ? 6 : 10;

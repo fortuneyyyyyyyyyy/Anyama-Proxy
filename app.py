@@ -191,29 +191,6 @@ def create_app(test_config=None):
             return render_template("registration_success.html", artisan=result)
         return render_template("registration.html", form={}, categories=CATEGORIES, zones=ZONES)
 
-    @app.route("/retrait", methods=["GET", "POST"])
-    def removal_request():
-        if request.method == "POST":
-            payload = request.form
-            requester_name = str(payload.get("requester_name", "")).strip()
-            requester_phone = str(payload.get("requester_phone", "")).strip()
-            artisan_name = str(payload.get("artisan_name", "")).strip()
-            if not requester_name or not requester_phone or not artisan_name:
-                flash("Merci de renseigner votre nom, votre numéro et l’artisan concerné.", "error")
-            else:
-                artisan = Artisan.query.filter(Artisan.name.ilike(artisan_name)).first()
-                db.session.add(RemovalRequest(requester_name=requester_name, requester_phone=requester_phone,
-                                               artisan_name=artisan_name, artisan_id=artisan.id if artisan else None,
-                                               reason=str(payload.get("reason", "")).strip() or None))
-                db.session.commit()
-                send_admin_notification(
-                    "Nouvelle demande de retrait — Anyama Proxy",
-                    f"<h2>Nouvelle doléance de retrait</h2><p><strong>Artisan concerné :</strong> {escape(artisan_name)}</p><p><strong>Demandeur :</strong> {escape(requester_name)} · {escape(requester_phone)}</p><p><strong>Motif :</strong> {escape(str(payload.get('reason', '')).strip() or 'Aucun motif indiqué')}</p>",
-                    "removals",
-                )
-                return render_template("removal_success.html")
-        return render_template("removal_request.html", form=request.form)
-
     @app.route("/api/artisans", methods=["GET", "POST", "OPTIONS"])
     def api_artisans():
         if request.method == "OPTIONS":
@@ -243,28 +220,6 @@ def create_app(test_config=None):
         saved_categories = {item[0] for item in db.session.query(Artisan.category).filter(Artisan.category.isnot(None)).distinct().all()}
         categories = list(dict.fromkeys(CATEGORIES + sorted(saved_categories)))
         return jsonify({"success": True, "categories": categories, "zones": ZONES})
-
-    @app.route("/api/removal-requests", methods=["POST", "OPTIONS"])
-    def api_removal_request():
-        if request.method == "OPTIONS":
-            return ("", 204)
-        payload = request.get_json(silent=True) or {}
-        requester_name = str(payload.get("requester_name", "")).strip()
-        requester_phone = str(payload.get("requester_phone", "")).strip()
-        artisan_name = str(payload.get("artisan_name", "")).strip()
-        if not requester_name or not requester_phone or not artisan_name:
-            return jsonify({"success": False, "error": "Nom, numéro et artisan concerné sont obligatoires."}), 400
-        artisan = Artisan.query.filter(Artisan.name.ilike(artisan_name)).first()
-        db.session.add(RemovalRequest(requester_name=requester_name, requester_phone=requester_phone,
-                                       artisan_name=artisan_name, artisan_id=artisan.id if artisan else None,
-                                       reason=str(payload.get("reason", "")).strip() or None))
-        db.session.commit()
-        send_admin_notification(
-            "Nouvelle demande de retrait — Anyama Proxy",
-            f"<h2>Nouvelle doléance de retrait</h2><p><strong>Artisan concerné :</strong> {escape(artisan_name)}</p><p><strong>Demandeur :</strong> {escape(requester_name)} · {escape(requester_phone)}</p><p><strong>Motif :</strong> {escape(str(payload.get('reason', '')).strip() or 'Aucun motif indiqué')}</p>",
-            "removals",
-        )
-        return jsonify({"success": True, "message": "Votre demande de retrait a été envoyée."}), 201
 
     @app.route("/api/profile-reports", methods=["POST", "OPTIONS"])
     def api_profile_reports():
@@ -328,8 +283,6 @@ def create_app(test_config=None):
     @admin_required
     def admin_dashboard():
         return render_template("admin_dashboard.html", artisans=Artisan.query.order_by(Artisan.created_at.desc()).all(),
-                               removal_requests=RemovalRequest.query.order_by(RemovalRequest.created_at.desc()).all(),
-                               removal_statuses=REMOVAL_STATUSES,
                                reports=ProfileReport.query.order_by(ProfileReport.created_at.desc()).all(),
                                report_statuses=REPORT_STATUSES, report_types=REPORT_TYPES)
 
@@ -344,22 +297,6 @@ def create_app(test_config=None):
             artisan.is_approved, artisan.status = False, "rejected"
         elif action == "withdraw":
             artisan.is_approved, artisan.status, artisan.withdrawn_at = False, "withdrawn", datetime.utcnow()
-        db.session.commit()
-        return redirect(url_for("admin_dashboard"))
-
-    @app.post("/admin/removals/<int:request_id>/status")
-    @admin_required
-    def admin_removal_status(request_id):
-        removal = RemovalRequest.query.get_or_404(request_id)
-        action = request.form.get("action")
-        if action == "process":
-            removal.status, removal.processed_at = "processed", datetime.utcnow()
-            if removal.artisan_id:
-                artisan = db.session.get(Artisan, removal.artisan_id)
-                if artisan:
-                    artisan.is_approved, artisan.status, artisan.withdrawn_at = False, "withdrawn", datetime.utcnow()
-        elif action == "reject":
-            removal.status, removal.processed_at = "rejected", datetime.utcnow()
         db.session.commit()
         return redirect(url_for("admin_dashboard"))
 

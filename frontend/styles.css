@@ -625,3 +625,8 @@ html[data-theme="light"] .removal-panel .form-feedback {
 .reporter-fields .full { grid-column:1/-1; }
 .report-submit { margin-top:18px; }
 @media(max-width:520px) { .profile-modal-card { padding:26px 18px; } .profile-modal-close { top:12px; right:12px; } .reporter-fields { grid-template-columns:1fr; } .reporter-fields .full { grid-column:auto; } }
+
+.report-reasons-label { display:grid; gap:8px; color:var(--muted); font-size:12px; }
+.report-form select.report-reasons { display:block; width:100%; min-height:138px; padding:8px; border:1px solid var(--line); border-radius:12px; background:var(--bg); color:var(--ink); font:inherit; }
+.report-form select.report-reasons option { padding:9px 10px; border-radius:7px; }
+.report-form select.report-reasons option:checked { background:var(--accent); color:#fff; }
