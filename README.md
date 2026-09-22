@@ -97,6 +97,6 @@ frontend/assets/               # logos et assets
 
 **Dernière mise à jour : 20 septembre 2026.**
 git add .
-git commit -m "Fonctionnalités V2 réactivées"
+git commit -m "Fonctionnalités V2 réactivées v.1"
 
 git push -u origin main

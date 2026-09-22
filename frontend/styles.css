@@ -658,3 +658,5 @@ html[data-theme="light"] .removal-panel .form-feedback {
 @media(max-width:520px) { .reputation-heading { display:block; } .rating-summary { margin-top:12px; text-align:left; } }
 
 .profile-popularity{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0 0}.profile-popularity span{padding:6px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent-strong);font:500 10px 'DM Mono';text-transform:uppercase;letter-spacing:.05em}
+
+.report-choices{margin-top:24px;border-top:1px solid var(--line);padding-top:18px}.report-choices-summary{display:flex;align-items:center;justify-content:space-between;gap:16px;list-style:none;cursor:pointer;user-select:none}.report-choices-summary::-webkit-details-marker{display:none}.report-choices-summary h3{margin:6px 0 0}.report-choices-summary>i{width:20px;height:20px;transition:transform .2s ease;color:var(--muted)}.report-choices[open] .report-choices-summary>i{transform:rotate(180deg)}.report-choices-summary:focus-visible{outline:2px solid var(--accent);outline-offset:6px;border-radius:8px}.report-choice-grid{margin-top:18px}
