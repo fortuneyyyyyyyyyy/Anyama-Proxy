@@ -73,6 +73,8 @@ class ProfileReport(db.Model):
     report_type = db.Column(db.String(20), nullable=False, default="error", index=True)
     reasons = db.Column(db.Text, nullable=False)
     details = db.Column(db.Text, nullable=True)
+    profile_snapshot = db.Column(db.Text, nullable=True)
+    proposed_profile = db.Column(db.Text, nullable=True)
     reporter_name = db.Column(db.String(120), nullable=True)
     reporter_phone = db.Column(db.String(30), nullable=True)
     reporter_email = db.Column(db.String(160), nullable=True)
@@ -89,6 +91,25 @@ class ProfileReport(db.Model):
             return ", ".join(json.loads(self.reasons))
         except (TypeError, json.JSONDecodeError):
             return self.reasons or "Aucun motif"
+
+    @property
+    def snapshot_display(self):
+        try:
+            data = json.loads(self.profile_snapshot or "{}")
+            return " · ".join(f"{key}: {value or 'Non renseigné'}" for key, value in data.items())
+        except (TypeError, json.JSONDecodeError):
+            return self.profile_snapshot or "Informations indisponibles"
+
+    @property
+    def comparison_rows(self):
+        labels = {"name": "Nom", "category": "Métier", "zone": "Quartier", "phone": "Téléphone", "whatsapp": "WhatsApp", "service": "Service", "description": "Description"}
+        try:
+            old = json.loads(self.profile_snapshot or "{}")
+            proposed = json.loads(self.proposed_profile or "{}")
+        except (TypeError, json.JSONDecodeError):
+            return []
+        old_by_label = {key: old.get(label, "") for key, label in labels.items()}
+        return [{"key": key, "label": label, "old": old_by_label.get(key, ""), "new": proposed.get(key, ""), "changed": old_by_label.get(key, "") != proposed.get(key, "")} for key, label in labels.items()]
 
 
 def admin_configured():
@@ -243,15 +264,40 @@ def create_app(test_config=None):
         reporter_name = str(payload.get("reporter_name", "")).strip() or None
         reporter_phone = str(payload.get("reporter_phone", "")).strip() or None
         reporter_email = str(payload.get("reporter_email", "")).strip() or None
+        if report_type == "error":
+            if not reporter_name or not reporter_phone:
+                return jsonify({"success": False, "error": "Votre nom et votre numéro sont obligatoires pour demander une correction."}), 400
+            details = None
+            reporter_email = None
+        snapshot = {"Nom": artisan.name, "Métier": artisan.category, "Quartier": artisan.zone,
+                    "Téléphone": artisan.phone or "", "WhatsApp": artisan.whatsapp or "",
+                    "Service": artisan.service or "", "Description": artisan.description or ""}
+        proposed = None
+        if report_type == "error":
+            raw_proposed = payload.get("proposed_profile") or {}
+            if not isinstance(raw_proposed, dict):
+                return jsonify({"success": False, "error": "Les corrections proposées sont invalides."}), 400
+            proposed = {key: str(raw_proposed.get(key, "")).strip() for key in ("name", "category", "zone", "phone", "whatsapp", "service", "description")}
+            if not proposed["name"] or not proposed["category"] or not proposed["zone"]:
+                return jsonify({"success": False, "error": "Le nom, le métier et le quartier corrigés sont obligatoires."}), 400
+            for key in ("phone", "whatsapp"):
+                if proposed[key] and normalize_ci_contact(proposed[key]) is None:
+                    return jsonify({"success": False, "error": "Chaque numéro corrigé doit commencer par +225."}), 400
+            if not proposed["phone"] and not proposed["whatsapp"]:
+                return jsonify({"success": False, "error": "Conservez au moins un numéro de contact dans la correction."}), 400
+            if proposed == {"name": artisan.name, "category": artisan.category, "zone": artisan.zone, "phone": artisan.phone or "", "whatsapp": artisan.whatsapp or "", "service": artisan.service or "", "description": artisan.description or ""}:
+                return jsonify({"success": False, "error": "Modifiez au moins une information avant d’envoyer la correction."}), 400
         report = ProfileReport(artisan_id=artisan.id, artisan_name=artisan.name, report_type=report_type,
                                reasons=json.dumps(reasons, ensure_ascii=False), details=details,
+                               profile_snapshot=json.dumps(snapshot, ensure_ascii=False),
+                               proposed_profile=json.dumps(proposed, ensure_ascii=False) if proposed else None,
                                reporter_name=reporter_name, reporter_phone=reporter_phone, reporter_email=reporter_email)
         db.session.add(report)
         db.session.commit()
         reporter = " · ".join(value for value in (reporter_name, reporter_phone, reporter_email) if value) or "Non renseigné"
         send_admin_notification(
             f"{REPORT_TYPES[report_type]} — {artisan.name}",
-            f"<h2>{escape(REPORT_TYPES[report_type])}</h2><p><strong>Profil :</strong> {escape(artisan.name)} · {escape(artisan.category)} · {escape(artisan.zone)}</p><p><strong>Motifs :</strong> {escape(', '.join(reasons))}</p><p><strong>Détails :</strong> {escape(details or 'Aucun détail')}</p><p><strong>Visiteur :</strong> {escape(reporter)}</p>",
+            f"<h2>{escape(REPORT_TYPES[report_type])}</h2><p><strong>Profil :</strong> {escape(artisan.name)} · {escape(artisan.category)} · {escape(artisan.zone)}</p><p><strong>Informations exposées :</strong> {escape(' · '.join(value for value in snapshot.values() if value))}</p><p><strong>Correction proposée :</strong> {escape(' · '.join(value for value in (proposed or {}).values() if value) or 'Aucune')}</p><p><strong>Motifs :</strong> {escape(', '.join(reasons))}</p><p><strong>Détails :</strong> {escape(details or 'Aucun détail')}</p><p><strong>Demandeur :</strong> {escape(reporter)}</p>",
             "reports",
         )
         return jsonify({"success": True, "message": "Votre signalement a été transmis à l’administration."}), 201
@@ -306,6 +352,17 @@ def create_app(test_config=None):
         report = ProfileReport.query.get_or_404(report_id)
         action = request.form.get("action")
         if action == "process":
+            if report.report_type == "error" and report.proposed_profile and report.artisan_id:
+                proposed = json.loads(report.proposed_profile)
+                artisan = db.session.get(Artisan, report.artisan_id)
+                if artisan:
+                    artisan.name = proposed["name"]
+                    artisan.category = proposed["category"]
+                    artisan.zone = proposed["zone"]
+                    artisan.phone = proposed["phone"]
+                    artisan.whatsapp = proposed["whatsapp"] or None
+                    artisan.service = proposed["service"] or ""
+                    artisan.description = proposed["description"] or None
             report.status, report.processed_at = "processed", datetime.utcnow()
         elif action == "reject":
             report.status, report.processed_at = "rejected", datetime.utcnow()
@@ -358,6 +415,11 @@ def ensure_schema():
         if name not in artisan_columns:
             db.session.execute(text(f"ALTER TABLE artisans ADD COLUMN {name} {definition}"))
     db.session.execute(text("UPDATE artisans SET status = CASE WHEN is_approved THEN 'approved' ELSE 'rejected' END WHERE status IS NULL OR status = ''"))
+    report_columns = {column["name"] for column in inspect(db.engine).get_columns("profile_reports")}
+    if "profile_snapshot" not in report_columns:
+        db.session.execute(text("ALTER TABLE profile_reports ADD COLUMN profile_snapshot TEXT NULL"))
+    if "proposed_profile" not in report_columns:
+        db.session.execute(text("ALTER TABLE profile_reports ADD COLUMN proposed_profile TEXT NULL"))
     db.session.commit()
 
 

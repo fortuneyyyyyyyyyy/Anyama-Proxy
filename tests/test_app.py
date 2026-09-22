@@ -83,3 +83,71 @@ def test_profile_report_is_private_and_saved(client):
         assert "Escroquerie présumée" in report.reasons_display
         assert report.reporter_phone == "+225 07 00 00 00 00"
 
+
+
+def test_error_report_requires_reporter_name_and_phone(client):
+    response = client.post('/api/profile-reports', json={
+        "artisan_id": 1, "report_type": "error", "reasons": ["Coordonnées incorrectes"],
+    })
+    assert response.status_code == 400
+    assert "nom" in response.get_json()["error"]
+
+
+def test_error_report_saves_exposed_profile_snapshot_without_details_or_email(client):
+    response = client.post('/api/profile-reports', json={
+        "artisan_id": 1, "report_type": "error", "reasons": ["Mauvais métier"],
+        "details": "Ne doit pas être conservé", "reporter_name": "Awa Test",
+        "reporter_phone": "+225 07 00 00 00 00", "reporter_email": "awa@example.com",
+        "proposed_profile": {"name": "Kouassi Corrigé", "category": "Plomberie", "zone": "Anyama Centre", "phone": "+225 07 00 00 00 00", "whatsapp": "", "service": "Dépannage corrigé", "description": "Profil corrigé"},
+    })
+    assert response.status_code == 201
+    with client.application.app_context():
+        from app import ProfileReport
+        report = ProfileReport.query.one()
+        assert report.details is None
+        assert report.reporter_email is None
+        assert "Nom" in report.snapshot_display
+        assert "Téléphone" in report.snapshot_display
+
+
+
+def test_admin_accepting_correction_updates_artisan_only_after_approval(client):
+    payload = {
+        "artisan_id": 1, "report_type": "error", "reasons": ["Mauvais métier"],
+        "reporter_name": "Awa Admin Test", "reporter_phone": "+225 07 00 00 00 00",
+        "proposed_profile": {"name": "Kouassi Modifié", "category": "Peinture", "zone": "Anyama PK18", "phone": "+225 05 00 00 00 00", "whatsapp": "", "service": "Service corrigé", "description": "Description corrigée"},
+    }
+    response = client.post('/api/profile-reports', json=payload)
+    assert response.status_code == 201
+    with client.application.app_context():
+        artisan = Artisan.query.get(1)
+        assert artisan.name == "Kouassi Électricité"
+    with client.session_transaction() as session:
+        session['admin_authenticated'] = True
+    response = client.post('/admin/reports/1/status', data={'action': 'process'})
+    assert response.status_code == 302
+    with client.application.app_context():
+        artisan = Artisan.query.get(1)
+        assert artisan.name == "Kouassi Modifié"
+        assert artisan.category == "Peinture"
+        report = ProfileReport.query.one()
+        assert report.status == "processed"
+
+
+
+def test_admin_rejecting_correction_keeps_original_profile(client):
+    response = client.post('/api/profile-reports', json={
+        "artisan_id": 1, "report_type": "error", "reasons": ["Mauvais quartier"],
+        "reporter_name": "Awa Refus Test", "reporter_phone": "+225 07 00 00 00 00",
+        "proposed_profile": {"name": "Fausse correction", "category": "Plomberie", "zone": "Ebimpé", "phone": "+225 05 00 00 00 00", "whatsapp": "", "service": "", "description": ""},
+    })
+    assert response.status_code == 201
+    with client.session_transaction() as session:
+        session['admin_authenticated'] = True
+    assert client.post('/admin/reports/1/status', data={'action': 'reject'}).status_code == 302
+    with client.application.app_context():
+        artisan = Artisan.query.get(1)
+        assert artisan.name == "Kouassi Électricité"
+        assert artisan.zone == "Anyama Centre"
+        assert ProfileReport.query.one().status == "rejected"
+
