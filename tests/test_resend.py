@@ -64,6 +64,9 @@ def test_resend_notifications_cover_registration_and_all_profile_report_types(tm
     assert any('Signalement sérieux' in subject for subject in subjects)
     assert any('Demande de retrait' in subject for subject in subjects)
     assert all('admin?tab=' in call['payload']['html'] for call in calls)
+    assert all('email-card' in call['payload']['html'] for call in calls)
+    assert all('email-header' in call['payload']['html'] for call in calls)
+    assert all(call['headers'].get('User-agent') == 'anyama-proxy/1.0' for call in calls)
     with app.app_context():
         db.drop_all()
 

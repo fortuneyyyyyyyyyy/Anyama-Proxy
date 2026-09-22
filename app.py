@@ -162,7 +162,42 @@ def send_admin_notification(subject, body_html, tab):
         return False
     origin = os.getenv("FRONTEND_ORIGIN", "https://anyama-proxy.vercel.app").rstrip("/")
     admin_url = f"{origin}/admin?tab={tab}"
-    html_body = f"{body_html}<p style='margin-top:24px'><a href='{escape(admin_url)}' style='display:inline-block;padding:12px 18px;background:#f82000;color:#17120e;text-decoration:none;border-radius:999px;font-weight:700'>Ouvrir l’administration</a></p>"
+    html_body = f"""<!doctype html>
+<html lang=\"fr\">
+<head>
+  <meta charset=\"utf-8\">
+  <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">
+  <title>{escape(subject)}</title>
+  <style>
+    body{{margin:0;background:#f4f5f1;color:#17120e;font-family:Arial,Helvetica,sans-serif;line-height:1.55}}
+    .email-shell{{width:100%;padding:32px 12px;background:#f4f5f1}}
+    .email-card{{max-width:620px;margin:0 auto;background:#fff;border:1px solid #eadfd4;border-radius:22px;overflow:hidden;box-shadow:0 18px 50px rgba(71,35,13,.12)}}
+    .email-header{{padding:28px 32px;background:#17120e;color:#fffaf5;border-bottom:4px solid #f82000}}
+    .email-kicker{{margin:0 0 10px;color:#f82000;font:600 11px monospace;letter-spacing:.14em;text-transform:uppercase}}
+    .email-brand{{margin:0;font-size:25px;letter-spacing:-.04em}}
+    .email-content{{padding:30px 32px}}
+    .email-content h2{{margin:0 0 20px;color:#17120e;font-size:25px;letter-spacing:-.04em;line-height:1.15}}
+    .email-content p{{margin:0 0 12px;color:#756a61;font-size:15px}}
+    .email-content strong{{color:#17120e}}
+    .email-detail{{padding:14px 16px;background:#fffaf5;border:1px solid #eadfd4;border-radius:12px}}
+    .email-actions{{padding:0 32px 32px}}
+    .email-button{{display:inline-block;padding:13px 20px;background:#f82000;color:#17120e!important;border-radius:999px;font-weight:700;text-decoration:none}}
+    .email-footer{{padding:18px 32px;background:#241a14;color:#fff9;font-size:12px}}
+    .email-footer a{{color:#fffaf5}}
+    @media only screen and (max-width:640px){{.email-shell{{padding:12px 6px}}.email-header,.email-content,.email-actions,.email-footer{{padding-left:20px;padding-right:20px}}.email-content h2{{font-size:22px}}}}
+  </style>
+</head>
+<body>
+  <div class=\"email-shell\">
+    <div class=\"email-card\">
+      <div class=\"email-header\"><p class=\"email-kicker\">Anyama Proxy · Administration</p><h1 class=\"email-brand\">Nouvelle activité à modérer</h1></div>
+      <div class=\"email-content\"><div class=\"email-detail\">{body_html}</div></div>
+      <div class=\"email-actions\"><a class=\"email-button\" href=\"{escape(admin_url)}\">Ouvrir l’administration</a></div>
+      <div class=\"email-footer\">Notification automatique Anyama Proxy · <a href=\"{escape(admin_url)}\">Accéder au dashboard</a></div>
+    </div>
+  </div>
+</body>
+</html>"""
     payload = json.dumps({
         "from": os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev"),
         "to": [admin_email],
