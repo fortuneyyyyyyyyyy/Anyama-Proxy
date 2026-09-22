@@ -17,6 +17,8 @@ db = SQLAlchemy()
 CATEGORIES = ["Plomberie", "Électricité", "Menuiserie", "Maçonnerie", "Peinture", "Coiffure & beauté", "Cuisine", "Réparation"]
 ZONES = ["Anyama Centre", "Anyama-Adjamé", "Anyama PK18", "Ebimpé", "Azaguié route", "Autre quartier d’Anyama"]
 REMOVAL_STATUSES = {"pending": "En attente", "processed": "Retrait effectué", "rejected": "Refusée"}
+REPORT_STATUSES = {"pending": "En attente", "processed": "Traité", "rejected": "Refusé"}
+REPORT_TYPES = {"error": "Erreur sur les informations", "safety": "Signalement sérieux", "withdraw": "Demande de retrait"}
 
 
 class Artisan(db.Model):
@@ -61,6 +63,32 @@ class RemovalRequest(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     processed_at = db.Column(db.DateTime, nullable=True)
     artisan = db.relationship("Artisan", backref=db.backref("removal_requests", lazy=True))
+
+
+class ProfileReport(db.Model):
+    __tablename__ = "profile_reports"
+    id = db.Column(db.Integer, primary_key=True)
+    artisan_id = db.Column(db.Integer, db.ForeignKey("artisans.id"), nullable=True)
+    artisan_name = db.Column(db.String(120), nullable=False)
+    report_type = db.Column(db.String(20), nullable=False, default="error", index=True)
+    reasons = db.Column(db.Text, nullable=False)
+    details = db.Column(db.Text, nullable=True)
+    reporter_name = db.Column(db.String(120), nullable=True)
+    reporter_phone = db.Column(db.String(30), nullable=True)
+    reporter_email = db.Column(db.String(160), nullable=True)
+    status = db.Column(db.String(20), nullable=False, default="pending", index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    processed_at = db.Column(db.DateTime, nullable=True)
+    artisan = db.relationship("Artisan", backref=db.backref("profile_reports", lazy=True))
+
+
+
+    @property
+    def reasons_display(self):
+        try:
+            return ", ".join(json.loads(self.reasons))
+        except (TypeError, json.JSONDecodeError):
+            return self.reasons or "Aucun motif"
 
 
 def admin_configured():
@@ -238,6 +266,41 @@ def create_app(test_config=None):
         )
         return jsonify({"success": True, "message": "Votre demande de retrait a été envoyée."}), 201
 
+    @app.route("/api/profile-reports", methods=["POST", "OPTIONS"])
+    def api_profile_reports():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        payload = request.get_json(silent=True) or {}
+        report_type = str(payload.get("report_type", "error")).strip().lower()
+        if report_type not in REPORT_TYPES:
+            return jsonify({"success": False, "error": "Type de signalement invalide."}), 400
+        artisan_id = payload.get("artisan_id")
+        artisan = db.session.get(Artisan, artisan_id) if artisan_id else None
+        if not artisan or not artisan.is_approved or artisan.status != "approved":
+            return jsonify({"success": False, "error": "Ce profil n’est plus disponible."}), 404
+        reasons = payload.get("reasons", [])
+        if isinstance(reasons, str):
+            reasons = [reasons]
+        reasons = [str(reason).strip() for reason in reasons if str(reason).strip()]
+        if not reasons:
+            return jsonify({"success": False, "error": "Sélectionnez au moins un motif."}), 400
+        details = str(payload.get("details", "")).strip() or None
+        reporter_name = str(payload.get("reporter_name", "")).strip() or None
+        reporter_phone = str(payload.get("reporter_phone", "")).strip() or None
+        reporter_email = str(payload.get("reporter_email", "")).strip() or None
+        report = ProfileReport(artisan_id=artisan.id, artisan_name=artisan.name, report_type=report_type,
+                               reasons=json.dumps(reasons, ensure_ascii=False), details=details,
+                               reporter_name=reporter_name, reporter_phone=reporter_phone, reporter_email=reporter_email)
+        db.session.add(report)
+        db.session.commit()
+        reporter = " · ".join(value for value in (reporter_name, reporter_phone, reporter_email) if value) or "Non renseigné"
+        send_admin_notification(
+            f"{REPORT_TYPES[report_type]} — {artisan.name}",
+            f"<h2>{escape(REPORT_TYPES[report_type])}</h2><p><strong>Profil :</strong> {escape(artisan.name)} · {escape(artisan.category)} · {escape(artisan.zone)}</p><p><strong>Motifs :</strong> {escape(', '.join(reasons))}</p><p><strong>Détails :</strong> {escape(details or 'Aucun détail')}</p><p><strong>Visiteur :</strong> {escape(reporter)}</p>",
+            "reports",
+        )
+        return jsonify({"success": True, "message": "Votre signalement a été transmis à l’administration."}), 201
+
     @app.route("/admin/login", methods=["GET", "POST"])
     def admin_login():
         if request.method == "POST":
@@ -266,7 +329,9 @@ def create_app(test_config=None):
     def admin_dashboard():
         return render_template("admin_dashboard.html", artisans=Artisan.query.order_by(Artisan.created_at.desc()).all(),
                                removal_requests=RemovalRequest.query.order_by(RemovalRequest.created_at.desc()).all(),
-                               removal_statuses=REMOVAL_STATUSES)
+                               removal_statuses=REMOVAL_STATUSES,
+                               reports=ProfileReport.query.order_by(ProfileReport.created_at.desc()).all(),
+                               report_statuses=REPORT_STATUSES, report_types=REPORT_TYPES)
 
     @app.post("/admin/artisans/<int:artisan_id>/status")
     @admin_required
@@ -297,6 +362,24 @@ def create_app(test_config=None):
             removal.status, removal.processed_at = "rejected", datetime.utcnow()
         db.session.commit()
         return redirect(url_for("admin_dashboard"))
+
+    @app.post("/admin/reports/<int:report_id>/status")
+    @admin_required
+    def admin_report_status(report_id):
+        report = ProfileReport.query.get_or_404(report_id)
+        action = request.form.get("action")
+        if action == "process":
+            report.status, report.processed_at = "processed", datetime.utcnow()
+        elif action == "reject":
+            report.status, report.processed_at = "rejected", datetime.utcnow()
+        elif action == "withdraw":
+            report.status, report.processed_at = "processed", datetime.utcnow()
+            if report.artisan_id:
+                artisan = db.session.get(Artisan, report.artisan_id)
+                if artisan:
+                    artisan.is_approved, artisan.status, artisan.withdrawn_at = False, "withdrawn", datetime.utcnow()
+        db.session.commit()
+        return redirect(url_for("admin_dashboard", tab="reports"))
 
     @app.get("/health")
     def health():

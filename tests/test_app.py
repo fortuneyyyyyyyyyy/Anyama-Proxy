@@ -1,5 +1,5 @@
 import pytest
-from app import Artisan, create_app, db
+from app import Artisan, ProfileReport, create_app, db
 
 @pytest.fixture()
 def client(tmp_path):
@@ -66,3 +66,20 @@ def test_api_returns_only_approved_artisans_and_cors(client):
     assert payload["success"] is True
     assert response.headers["Access-Control-Allow-Origin"] == "*"
     assert all(item["name"] != "Nouveau Pro" for item in payload["data"])
+
+
+def test_profile_report_is_private_and_saved(client):
+    response = client.post('/api/profile-reports', json={
+        "artisan_id": 1,
+        "report_type": "safety",
+        "reasons": ["Escroquerie présumée", "Autre"],
+        "details": "Le numéro ne correspond pas à l’activité.",
+        "reporter_phone": "+225 07 00 00 00 00",
+    })
+    assert response.status_code == 201
+    with client.application.app_context():
+        report = ProfileReport.query.one()
+        assert report.status == "pending"
+        assert "Escroquerie présumée" in report.reasons_display
+        assert report.reporter_phone == "+225 07 00 00 00 00"
+
