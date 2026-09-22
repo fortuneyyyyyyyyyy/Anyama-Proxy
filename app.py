@@ -170,7 +170,7 @@ def send_admin_notification(subject, body_html, tab):
         "html": html_body,
     }).encode("utf-8")
     try:
-        request = UrlRequest("https://api.resend.com/emails", data=payload, headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, method="POST")
+        request = UrlRequest("https://api.resend.com/emails", data=payload, headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json", "User-Agent": "anyama-proxy/1.0"}, method="POST")
         with urlopen(request, timeout=10) as response:
             if 200 <= response.status < 300:
                 return True
