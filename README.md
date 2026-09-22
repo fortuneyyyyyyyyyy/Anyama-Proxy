@@ -97,6 +97,6 @@ frontend/assets/               # logos et assets
 
 **Dernière mise à jour : 20 septembre 2026.**
 git add .
-git commit -m "derniere version2 cest finyyy"
+git commit -m "derniere version2 cest finyyyww"
 
 git push -u origin main

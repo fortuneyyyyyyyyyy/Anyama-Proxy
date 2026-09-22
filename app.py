@@ -341,6 +341,20 @@ def ensure_schema():
     db.session.commit()
 
 
+def normalize_ci_contact(value):
+    """Return a cleaned Côte d’Ivoire number, or None when its +225 prefix is missing."""
+    raw = " ".join(str(value or "").strip().split())
+    if not raw:
+        return ""
+    compact = "".join(ch for ch in raw if ch.isdigit() or ch == "+")
+    if not compact.startswith("+225"):
+        return None
+    national = compact[4:]
+    if not national.isdigit() or len(national) < 8:
+        return None
+    return raw
+
+
 def save_registration(payload):
     first_name = str(payload.get("first_name", "")).strip()
     last_name = str(payload.get("last_name", "")).strip()
@@ -352,19 +366,23 @@ def save_registration(payload):
     required = [full_name, category, zone, str(payload.get("consent", "")).strip()]
     if any(not field for field in required):
         return None, "Merci de renseigner votre prénom, votre nom, votre métier, votre quartier et d’accepter la publication."
-    phone = str(payload.get("phone", "")).strip()
-    whatsapp = str(payload.get("whatsapp", "")).strip()
+
+    phone = normalize_ci_contact(payload.get("phone"))
+    whatsapp = normalize_ci_contact(payload.get("whatsapp"))
+    if phone is None or whatsapp is None:
+        return None, "Chaque numéro doit commencer par l’indicatif +225 (ex. +225 07 00 00 00 00)."
     if not phone and not whatsapp:
         return None, "Renseignez au moins un contact : téléphone ou WhatsApp."
+
     artisan = Artisan(name=full_name, service=str(payload.get("service", "")).strip(), category=category,
-                      zone=zone, phone=phone or whatsapp, whatsapp=whatsapp or None,
+                      zone=zone, phone=phone, whatsapp=whatsapp or None,
                       description=str(payload.get("description", "")).strip() or None,
-                      is_approved=True, status="approved")
+                      is_approved=False, status="pending")
     db.session.add(artisan)
     db.session.commit()
     send_admin_notification(
-        "Nouvelle inscription artisan — Anyama Proxy",
-        f"<h2>Nouvelle inscription publiée</h2><p><strong>Nom :</strong> {escape(artisan.name)}</p><p><strong>Métier :</strong> {escape(artisan.category)}</p><p><strong>Quartier :</strong> {escape(artisan.zone)}</p><p><strong>Contact :</strong> {escape(artisan.phone)}</p>",
+        "Nouvelle inscription à valider — Anyama Proxy",
+        f"<h2>Nouvelle inscription en attente de validation</h2><p><strong>Nom :</strong> {escape(artisan.name)}</p><p><strong>Métier :</strong> {escape(artisan.category)}</p><p><strong>Quartier :</strong> {escape(artisan.zone)}</p><p><strong>Téléphone :</strong> {escape(artisan.phone or 'Non renseigné')}</p><p><strong>WhatsApp :</strong> {escape(artisan.whatsapp or 'Non renseigné')}</p>",
         "artisans",
     )
     return artisan, None
