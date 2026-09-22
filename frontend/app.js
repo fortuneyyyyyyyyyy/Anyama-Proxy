@@ -153,4 +153,4 @@ if (studioCard && studioLink) {
   studioLink.addEventListener('pointerleave', hide);
 }
 
-$('#year') && ($('#year').textContent = new Date().getFullYear()); initMobileMenu(); initTheme(); initPWA(); initProfileModal(); lucide.createIcons(); if ($('#artisan-grid')) Promise.all([loadMeta(), loadArtisans()]);
+$('#year') && ($('#year').textContent = new Date().getFullYear()); initMobileMenu(); initTheme(); initPWA(); initProfileModal(); initCookieConsent(); lucide.createIcons(); if ($('#artisan-grid')) Promise.all([loadMeta(), loadArtisans()]);

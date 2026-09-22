@@ -11,9 +11,13 @@ Anyama Proxy est un annuaire local pour trouver rapidement un artisan à Anyama.
 - Publication immédiate des inscriptions valides et consenties.
 - Option **Autre métier…** et **Autre quartier…** avec saisie libre.
 - Page publique dédiée de retrait : `https://anyama-proxy.vercel.app/retrait.html`.
-- Dashboard admin avec recherche, onglets Artisans / Doléances, pagination 10 sur PC et 6 sur mobile.
+- Dashboard admin avec recherche, onglets Artisans / Signalements / Avis, pagination 10 sur PC et 6 sur mobile.
 - Mode clair/sombre complet dans l’administration, mémorisé dans le navigateur.
+- Actualisation automatique du dashboard admin toutes les 30 secondes, avec conservation de l’onglet courant.
+- Cartes de modération différenciées pour les demandes de retrait et les signalements sérieux, avec actions adaptées.
 - Notifications e-mail Resend pour les inscriptions et doléances, avec lien vers l’onglet admin correspondant.
+- Pages légales V2 harmonisées : mentions légales, confidentialité, cookies et CGU.
+- Bannière cookies affichée uniquement sur l’accueil avec les actions **Compris** et **En savoir plus**, mémorisée localement.
 - PWA installable, service worker et cache du shell statique.
 
 ## Déploiement
@@ -47,13 +51,17 @@ Les URLs publiques sont :
 - connexion admin : `https://anyama-proxy.vercel.app/admin/login` ;
 - dashboard : `https://anyama-proxy.vercel.app/admin`.
 
-## Administration et retrait
+## Administration, signalements et retrait
 
 Les inscriptions valides sont enregistrées avec `is_approved=true` et `status=approved`, puis peuvent apparaître immédiatement dans l’annuaire. L’administrateur peut les rechercher, les publier, les désactiver ou les retirer.
 
-Une doléance est créée par `POST /api/removal-requests` avec le nom du demandeur, son numéro, l’artisan concerné et un motif facultatif. L’administrateur peut accepter ou refuser la demande. Un retrait passe le profil à `status=withdrawn` et `is_approved=false` sans supprimer automatiquement la ligne de base.
+Une doléance est créée par `POST /api/removal-requests` avec le nom du demandeur, son numéro, l’artisan concerné et un motif facultatif. L’administrateur peut traiter ou refuser la demande. Un retrait passe le profil à `status=withdrawn` et `is_approved=false` sans supprimer automatiquement la ligne de base.
 
-Les notifications Resend ouvrent le dashboard avec `?tab=artisans` ou `?tab=removals`. L’authentification reste obligatoire.
+Les signalements de profil sont centralisés dans l’onglet **Signalements**. Les types pris en charge sont l’erreur d’information, le signalement sérieux et la demande de retrait. Une proposition de correction est affichée sous forme de comparaison avant/après et n’est appliquée qu’après validation par l’administrateur.
+
+L’onglet **Avis** permet de publier, rejeter ou masquer les avis visiteurs. Les actions de modération restent protégées par la session administrateur.
+
+Les notifications Resend ouvrent le dashboard avec `?tab=artisans` ou `?tab=reports`. L’authentification reste obligatoire. La requête serveur inclut un `User-Agent` compatible avec Resend ; en cas d’échec d’envoi, la donnée soumise reste enregistrée.
 
 ## Pages légales et spécifications
 
@@ -61,7 +69,10 @@ Les documents publics sont dans `frontend/legal/` :
 
 - `mentions-legales.html` ;
 - `politique-confidentialite.html` ;
+- `politique-cookies.html` ;
 - `cgu.html`.
+
+Les pages légales partagent la feuille `frontend/legal/legal.css` et le thème clair/sombre. Elles décrivent les inscriptions, les avis, les signalements, les demandes de retrait, les notifications Resend et le fonctionnement PWA de la V2. La bannière cookies est volontairement limitée à la page d’accueil.
 
 Le cahier des charges à jour est dans `cahier-de-charge.md`.
 
@@ -95,8 +106,8 @@ frontend/legal/                # documents légaux
 frontend/assets/               # logos et assets
 ```
 
-**Dernière mise à jour : 20 septembre 2026.**
+**Version V2 finalisée — dernière mise à jour : 22 septembre 2026.**
 git add .
-git commit -m "Fonctionnalités V2 réactivéevv22"
+git commit -m "la V2 termineyy"
 
 git push -u origin main
