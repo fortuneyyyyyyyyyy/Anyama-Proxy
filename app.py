@@ -6,6 +6,7 @@ import os
 from html import escape
 from datetime import datetime, timedelta
 from functools import wraps
+from urllib.error import HTTPError
 from urllib.request import Request as UrlRequest, urlopen
 
 from flask import Flask, flash, g, jsonify, redirect, render_template, request, session, url_for
@@ -171,9 +172,22 @@ def send_admin_notification(subject, body_html, tab):
     try:
         request = UrlRequest("https://api.resend.com/emails", data=payload, headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, method="POST")
         with urlopen(request, timeout=10) as response:
-            return 200 <= response.status < 300
+            if 200 <= response.status < 300:
+                return True
+            app.logger.warning("Resend notification rejected with HTTP %s", response.status)
+            return False
+    except HTTPError as error:
+        # Resend returns 403 when the API key, recipient, or sender is not
+        # authorized. Keep the submission successful, but leave an actionable
+        # message in the deployment logs instead of a full traceback.
+        try:
+            details = error.read().decode("utf-8", errors="replace")[:500]
+        except Exception:
+            details = "réponse indisponible"
+        app.logger.warning("Resend notification rejected with HTTP %s: %s", error.code, details)
+        return False
     except Exception:
-        app.logger.exception("Resend notification failed")
+        app.logger.warning("Resend notification failed", exc_info=True)
         return False
 
 
