@@ -6,13 +6,14 @@
     <div>
       <p class="eyebrow">MODÉRATION / ESPACE PRIVÉ</p>
       <h1>Tableau de bord</h1>
-      <p><strong>{{ artisans|length }}</strong> profils · <strong>{{ reports|length }}</strong> signalements</p>
+      <p><strong>{{ artisans|length }}</strong> profils · <strong>{{ reports|length }}</strong> signalements · <strong>{{ reviews|length }}</strong> avis</p>
     </div>
   </div>
 
   <div class="admin-tabs" role="tablist" aria-label="Sections de modération">
     <button class="admin-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="artisans-panel" data-tab-target="artisans-panel">Artisans <span>{{ artisans|length }}</span></button>
     <button class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="reports-panel" data-tab-target="reports-panel">Signalements <span>{{ reports|length }}</span></button>
+    <button class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="reviews-panel" data-tab-target="reviews-panel">Avis <span>{{ reviews|length }}</span></button>
   </div>
 
   <section class="admin-panel is-active" id="artisans-panel" role="tabpanel">
@@ -41,6 +42,15 @@
         {% else %}<p class="admin-empty">Aucun signalement.</p>{% endfor %}
       </div>
     </div>
+  <section class="admin-panel" id="reviews-panel" role="tabpanel" hidden>
+    <div class="admin-card">
+      <div class="admin-card-heading"><div><p class="eyebrow">RÉPUTATION</p><h2>Avis visiteurs</h2></div><p class="admin-result-count">{{ reviews|length }} avis</p></div>
+      <div class="admin-table">
+        {% for item in reviews %}
+        <article class="admin-row review-admin-row"><div class="admin-person"><span class="admin-avatar admin-avatar-soft">★</span><div><strong>{{ item.artisan.name }}</strong><span>{{ item.rating }}/5 · {{ item.created_at.strftime('%d/%m/%Y %H:%M') }}</span><small>{{ item.comment or 'Aucun commentaire' }}</small><small>Signaux : {{ item.abuse_flags_display }}</small></div></div><span class="badge {{ item.status }}">{{ review_statuses.get(item.status, item.status) }}</span>{% if item.status != 'published' %}<div class="row-actions"><form method="post" action="{{ url_for('admin_review_status', review_id=item.id) }}"><input type="hidden" name="action" value="publish"><button type="submit">Valider</button></form>{% if item.status != 'rejected' %}<form method="post" action="{{ url_for('admin_review_status', review_id=item.id) }}"><input type="hidden" name="action" value="reject"><button class="danger" type="submit">Rejeter</button></form>{% endif %}</div>{% else %}<div class="row-actions"><form method="post" action="{{ url_for('admin_review_status', review_id=item.id) }}"><input type="hidden" name="action" value="reject"><button class="secondary" type="submit">Masquer</button></form></div>{% endif %}</article>
+        {% else %}<p class="admin-empty">Aucun avis.</p>{% endfor %}
+      </div>
+    </div>
   </section>
 </section>
 <script>
@@ -50,7 +60,7 @@
   const panels = [...root.querySelectorAll('.admin-panel')];
   const activateTab = tab => { tabs.forEach(item => { const active = item === tab; item.classList.toggle('is-active', active); item.setAttribute('aria-selected', active); }); panels.forEach(panel => { const active = panel.id === tab.dataset.tabTarget; panel.classList.toggle('is-active', active); panel.hidden = !active; }); };
   tabs.forEach(tab => tab.addEventListener('click', () => activateTab(tab)));
-  const requestedTab = new URLSearchParams(window.location.search).get('tab'); if (requestedTab === 'reports') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'reports-panel')); if (requestedTab === 'artisans') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'artisans-panel'));
+  const requestedTab = new URLSearchParams(window.location.search).get('tab'); if (requestedTab === 'reports') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'reports-panel')); if (requestedTab === 'reviews') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'reviews-panel')); if (requestedTab === 'artisans') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'artisans-panel'));
   const items = [...root.querySelectorAll('.admin-artisan-item')];
   const search = root.querySelector('#artisan-search'); const pagination = root.querySelector('#artisan-pagination'); const count = root.querySelector('[data-result-count]'); let page = 1;
   const pageSize = () => window.matchMedia('(max-width: 700px)').matches ? 6 : 10;

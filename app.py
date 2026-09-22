@@ -1,14 +1,16 @@
+import hashlib
 import hmac
+import uuid
 import json
 import os
 from html import escape
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from urllib.request import Request as UrlRequest, urlopen
 
-from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, flash, g, jsonify, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect, or_, text
+from sqlalchemy import CheckConstraint, UniqueConstraint, func, inspect, or_, text
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash
 
@@ -19,6 +21,7 @@ ZONES = ["Anyama Centre", "Anyama-Adjamé", "Anyama PK18", "Ebimpé", "Azaguié 
 REMOVAL_STATUSES = {"pending": "En attente", "processed": "Retrait effectué", "rejected": "Refusée"}
 REPORT_STATUSES = {"pending": "En attente", "processed": "Traité", "rejected": "Refusé"}
 REPORT_TYPES = {"error": "Erreur sur les informations", "safety": "Signalement sérieux", "withdraw": "Demande de retrait"}
+REVIEW_STATUSES = {"published": "Publié", "pending": "À vérifier", "rejected": "Rejeté"}
 
 
 class Artisan(db.Model):
@@ -35,12 +38,17 @@ class Artisan(db.Model):
     is_featured = db.Column(db.Boolean, nullable=False, default=False)
     status = db.Column(db.String(20), nullable=False, default="approved", index=True)
     withdrawn_at = db.Column(db.DateTime, nullable=True)
+    view_count = db.Column(db.Integer, nullable=False, default=0)
+    phone_click_count = db.Column(db.Integer, nullable=False, default=0)
+    whatsapp_click_count = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     def to_dict(self):
+        average, count = review_summary(self.id)
         return {"id": self.id, "name": self.name, "service": self.service, "category": self.category,
                 "zone": self.zone, "phone": self.phone, "whatsapp": self.whatsapp,
                 "description": self.description, "status": self.status,
+                "rating_average": average, "review_count": count, "popularity": popularity_labels(self),
                 "created_at": self.created_at.isoformat(), "whatsapp_url": self.whatsapp_url}
 
     @property
@@ -112,6 +120,34 @@ class ProfileReport(db.Model):
         return [{"key": key, "label": label, "old": old_by_label.get(key, ""), "new": proposed.get(key, ""), "changed": old_by_label.get(key, "") != proposed.get(key, "")} for key, label in labels.items()]
 
 
+
+class Review(db.Model):
+    __tablename__ = "reviews"
+    __table_args__ = (
+        UniqueConstraint("visitor_id", "artisan_id", name="uq_review_visitor_artisan"),
+        CheckConstraint("rating >= 1 AND rating <= 5", name="ck_review_rating_range"),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    artisan_id = db.Column(db.Integer, db.ForeignKey("artisans.id"), nullable=False, index=True)
+    visitor_id = db.Column(db.String(64), nullable=False, index=True)
+    rating = db.Column(db.Integer, nullable=False)
+    comment = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(20), nullable=False, default="published", index=True)
+    abuse_flags = db.Column(db.Text, nullable=True)
+    ip_hash = db.Column(db.String(64), nullable=True, index=True)
+    user_agent_hash = db.Column(db.String(64), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    artisan = db.relationship("Artisan", backref=db.backref("reviews", lazy=True))
+
+    @property
+    def abuse_flags_display(self):
+        try:
+            return ", ".join(json.loads(self.abuse_flags)) if self.abuse_flags else "Aucun signal"
+        except (TypeError, json.JSONDecodeError):
+            return self.abuse_flags or "Aucun signal"
+
+
 def admin_configured():
     return bool(os.getenv("ADMIN_EMAIL") and (os.getenv("ADMIN_PASSWORD") or os.getenv("ADMIN_PASSWORD_HASH")))
 
@@ -175,6 +211,8 @@ def create_app(test_config=None):
         response.headers["Access-Control-Allow-Headers"] = "Content-Type"
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
         response.headers["Vary"] = "Origin"
+        if not request.cookies.get("visitor_id") and getattr(g, "visitor_id", None):
+            response.set_cookie("visitor_id", g.visitor_id, max_age=60 * 60 * 24 * 365, httponly=True, secure=not app.config.get("TESTING", False), samesite="Lax")
         return response
 
     @app.context_processor
@@ -241,6 +279,84 @@ def create_app(test_config=None):
         saved_categories = {item[0] for item in db.session.query(Artisan.category).filter(Artisan.category.isnot(None)).distinct().all()}
         categories = list(dict.fromkeys(CATEGORIES + sorted(saved_categories)))
         return jsonify({"success": True, "categories": categories, "zones": ZONES})
+
+    @app.post("/api/artisans/<int:artisan_id>/events")
+    def api_artisan_event(artisan_id):
+        artisan = Artisan.query.filter_by(id=artisan_id, is_approved=True, status="approved").first_or_404()
+        event_type = str((request.get_json(silent=True) or {}).get("type", "")).strip().lower()
+        if event_type == "view":
+            artisan.view_count += 1
+        elif event_type == "phone":
+            artisan.phone_click_count += 1
+        elif event_type == "whatsapp":
+            artisan.whatsapp_click_count += 1
+        else:
+            return jsonify({"success": False, "error": "Événement invalide."}), 400
+        db.session.commit()
+        return ("", 204)
+
+    @app.route("/api/artisans/<int:artisan_id>/reviews", methods=["GET", "POST", "OPTIONS"])
+    def api_artisan_reviews(artisan_id):
+        if request.method == "OPTIONS":
+            return ("", 204)
+        artisan = Artisan.query.filter_by(id=artisan_id, is_approved=True, status="approved").first_or_404()
+        visitor_id = ensure_visitor_id()
+        if request.method == "GET":
+            reviews = Review.query.filter_by(artisan_id=artisan.id, status="published").order_by(Review.created_at.desc()).limit(30).all()
+            average, count = review_summary(artisan.id)
+            already_reviewed = Review.query.filter_by(artisan_id=artisan.id, visitor_id=visitor_id).first() is not None
+            return jsonify({"success": True, "summary": {"average": average, "count": count}, "can_review": not already_reviewed, "reviews": [review_to_dict(item) for item in reviews]})
+
+        payload = request.get_json(silent=True) or {}
+        try:
+            rating = int(payload.get("rating"))
+        except (TypeError, ValueError):
+            rating = 0
+        if rating < 1 or rating > 5:
+            return jsonify({"success": False, "error": "La note doit être comprise entre 1 et 5."}), 400
+        comment = str(payload.get("comment", "")).strip() or None
+        if comment and len(comment) > 500:
+            return jsonify({"success": False, "error": "Le commentaire ne doit pas dépasser 500 caractères."}), 400
+        if Review.query.filter_by(visitor_id=visitor_id, artisan_id=artisan.id).first():
+            return jsonify({"success": False, "error": "Vous avez déjà noté cet artisan depuis ce navigateur."}), 409
+
+        now = datetime.utcnow()
+        ip_hash = hash_technical_value(request.headers.get("X-Forwarded-For", request.remote_addr or ""))
+        user_agent_hash = hash_technical_value(request.headers.get("User-Agent", ""))
+        window_start = now - timedelta(minutes=int(os.getenv("REVIEW_RATE_WINDOW_MINUTES", "10")))
+        day_start = now - timedelta(hours=24)
+        visitor_recent = Review.query.filter(Review.visitor_id == visitor_id, Review.created_at >= window_start).count()
+        ip_recent = Review.query.filter(Review.ip_hash == ip_hash, Review.created_at >= window_start).count()
+        ip_day = Review.query.filter(Review.ip_hash == ip_hash, Review.created_at >= day_start).count()
+        if visitor_recent >= int(os.getenv("REVIEW_VISITOR_WINDOW_LIMIT", "3")) or ip_day >= int(os.getenv("REVIEW_IP_DAILY_LIMIT", "20")):
+            return jsonify({"success": False, "error": "Trop de notes ont été envoyées récemment. Réessayez plus tard."}), 429
+
+        flags = []
+        if visitor_recent >= 2 or ip_recent >= 2:
+            flags.append("Fréquence élevée")
+        if ip_recent >= 3:
+            flags.append("Plusieurs avis depuis une même source")
+        artisan_recent = Review.query.filter(Review.artisan_id == artisan.id, Review.created_at >= window_start).count()
+        if artisan_recent >= int(os.getenv("REVIEW_ARTISAN_WAVE_LIMIT", "8")):
+            flags.append("Vague de notes sur cet artisan")
+        status = "pending" if flags else "published"
+        review = Review(artisan_id=artisan.id, visitor_id=visitor_id, rating=rating, comment=comment, status=status,
+                        abuse_flags=json.dumps(flags, ensure_ascii=False) if flags else None, ip_hash=ip_hash, user_agent_hash=user_agent_hash)
+        db.session.add(review)
+        try:
+            db.session.commit()
+        except Exception as error:
+            db.session.rollback()
+            if "uq_review_visitor_artisan" in str(error) or "UNIQUE constraint failed" in str(error):
+                return jsonify({"success": False, "error": "Vous avez déjà noté cet artisan depuis ce navigateur."}), 409
+            raise
+        send_admin_notification(
+            f"Nouvel avis {rating}/5 — {artisan.name}",
+            f"<h2>Nouvel avis reçu</h2><p><strong>Artisan :</strong> {escape(artisan.name)}</p><p><strong>Note :</strong> {rating}/5</p><p><strong>Statut :</strong> {escape(REVIEW_STATUSES[status])}</p><p><strong>Commentaire :</strong> {escape(comment or 'Aucun commentaire')}</p><p><strong>Signaux :</strong> {escape(', '.join(flags) or 'Aucun')}</p>",
+            "reviews",
+        )
+        message = "Votre avis a été publié." if status == "published" else "Votre avis a été reçu et sera vérifié par l’administration."
+        return jsonify({"success": True, "status": status, "message": message}), 201
 
     @app.route("/api/profile-reports", methods=["POST", "OPTIONS"])
     def api_profile_reports():
@@ -330,7 +446,8 @@ def create_app(test_config=None):
     def admin_dashboard():
         return render_template("admin_dashboard.html", artisans=Artisan.query.order_by(Artisan.created_at.desc()).all(),
                                reports=ProfileReport.query.order_by(ProfileReport.created_at.desc()).all(),
-                               report_statuses=REPORT_STATUSES, report_types=REPORT_TYPES)
+                               report_statuses=REPORT_STATUSES, report_types=REPORT_TYPES,
+                               reviews=Review.query.order_by(Review.created_at.desc()).all(), review_statuses=REVIEW_STATUSES)
 
     @app.post("/admin/artisans/<int:artisan_id>/status")
     @admin_required
@@ -375,6 +492,19 @@ def create_app(test_config=None):
         db.session.commit()
         return redirect(url_for("admin_dashboard", tab="reports"))
 
+    @app.post("/admin/reviews/<int:review_id>/status")
+    @admin_required
+    def admin_review_status(review_id):
+        review = Review.query.get_or_404(review_id)
+        action = request.form.get("action")
+        if action in {"approve", "publish"}:
+            review.status = "published"
+        elif action == "reject":
+            review.status = "rejected"
+        review.updated_at = datetime.utcnow()
+        db.session.commit()
+        return redirect(url_for("admin_dashboard", tab="reviews"))
+
     @app.get("/health")
     def health():
         return jsonify({"status": "ok", "service": "anyama-proxy"})
@@ -403,6 +533,41 @@ def create_app(test_config=None):
     return app
 
 
+def ensure_visitor_id():
+    visitor_id = request.cookies.get("visitor_id")
+    if not visitor_id:
+        visitor_id = str(uuid.uuid4())
+        g.visitor_id = visitor_id
+    return visitor_id
+
+
+def hash_technical_value(value):
+    salt = os.getenv("ABUSE_HASH_SALT", "anyama-proxy-change-this-salt")
+    return hashlib.sha256(f"{salt}:{value}".encode("utf-8")).hexdigest()
+
+
+def review_summary(artisan_id):
+    average, count = db.session.query(func.avg(Review.rating), func.count(Review.id)).filter_by(artisan_id=artisan_id, status="published").one()
+    return (round(float(average), 1) if average is not None else None, int(count or 0))
+
+
+def popularity_labels(artisan):
+    average, count = review_summary(artisan.id)
+    labels = []
+    if average is not None and average >= 4.5 and count >= 3:
+        labels.append("Très apprécié")
+    recent_reviews = Review.query.filter(Review.artisan_id == artisan.id, Review.status == "published", Review.created_at >= datetime.utcnow() - timedelta(days=30)).count()
+    if recent_reviews >= 3:
+        labels.append("En vogue")
+    if artisan.view_count >= 25 or artisan.phone_click_count + artisan.whatsapp_click_count >= 10 or count >= 10:
+        labels.append("Populaire")
+    return labels
+
+
+def review_to_dict(review):
+    return {"id": review.id, "rating": review.rating, "comment": review.comment, "created_at": review.created_at.isoformat(), "status": review.status}
+
+
 def ensure_schema():
     """Additive migration for existing SQLite/Neon installations."""
     inspector = inspect(db.engine)
@@ -410,6 +575,9 @@ def ensure_schema():
     additions = {
         "status": "VARCHAR(20) NOT NULL DEFAULT 'approved'",
         "withdrawn_at": "TIMESTAMP NULL",
+        "view_count": "INTEGER NOT NULL DEFAULT 0",
+        "phone_click_count": "INTEGER NOT NULL DEFAULT 0",
+        "whatsapp_click_count": "INTEGER NOT NULL DEFAULT 0",
     }
     for name, definition in additions.items():
         if name not in artisan_columns:

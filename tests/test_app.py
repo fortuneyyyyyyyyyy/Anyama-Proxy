@@ -1,5 +1,5 @@
 import pytest
-from app import Artisan, ProfileReport, create_app, db
+from app import Artisan, ProfileReport, Review, create_app, db
 
 @pytest.fixture()
 def client(tmp_path):
@@ -150,4 +150,43 @@ def test_admin_rejecting_correction_keeps_original_profile(client):
         assert artisan.name == "Kouassi Électricité"
         assert artisan.zone == "Anyama Centre"
         assert ProfileReport.query.one().status == "rejected"
+
+
+
+def test_reviews_use_anonymous_cookie_and_block_duplicate(client):
+    get_response = client.get('/api/artisans/1/reviews')
+    assert get_response.status_code == 200
+    assert 'visitor_id=' in get_response.headers.get('Set-Cookie', '')
+    response = client.post('/api/artisans/1/reviews', json={"rating": 5, "comment": "Très bon service"})
+    assert response.status_code == 201
+    assert response.get_json()["status"] == "published"
+    duplicate = client.post('/api/artisans/1/reviews', json={"rating": 4})
+    assert duplicate.status_code == 409
+    payload = client.get('/api/artisans/1/reviews').get_json()
+    assert payload["summary"]["average"] == 5.0
+    assert payload["summary"]["count"] == 1
+
+
+def test_reviews_validate_rating_and_comment_length(client):
+    assert client.post('/api/artisans/1/reviews', json={"rating": 6}).status_code == 400
+    assert client.post('/api/artisans/1/reviews', json={"rating": 0}).status_code == 400
+    assert client.post('/api/artisans/1/reviews', json={"rating": 4, "comment": "x" * 501}).status_code == 400
+
+
+def test_reviews_require_published_artisan(client):
+    response = client.post('/api/artisans/9999/reviews', json={"rating": 5})
+    assert response.status_code == 404
+
+
+
+def test_artisan_events_increment_popularity_counters(client):
+    assert client.post('/api/artisans/1/events', json={"type": "view"}).status_code == 204
+    assert client.post('/api/artisans/1/events', json={"type": "phone"}).status_code == 204
+    assert client.post('/api/artisans/1/events', json={"type": "whatsapp"}).status_code == 204
+    assert client.post('/api/artisans/1/events', json={"type": "invalid"}).status_code == 400
+    with client.application.app_context():
+        artisan = Artisan.query.get(1)
+        assert artisan.view_count == 1
+        assert artisan.phone_click_count == 1
+        assert artisan.whatsapp_click_count == 1
 
