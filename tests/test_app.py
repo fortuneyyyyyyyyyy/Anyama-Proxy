@@ -1,5 +1,5 @@
 import pytest
-from app import Artisan, ProfileReport, Review, create_app, db
+from app import AnalyticsEvent, Artisan, ProductFeedback, ProfileReport, Review, create_app, db
 
 @pytest.fixture()
 def client(tmp_path):
@@ -190,3 +190,46 @@ def test_artisan_events_increment_popularity_counters(client):
         assert artisan.phone_click_count == 1
         assert artisan.whatsapp_click_count == 1
 
+
+def test_product_feedback_is_saved_and_duplicate_is_blocked(client):
+    response = client.post('/api/feedback', json={
+        "type": "visitor",
+        "answers": {"ease_rating": "5", "design_rating": "4", "experience_rating": "5", "comment": "Très clair."},
+    })
+    assert response.status_code == 201
+    duplicate = client.post('/api/feedback', json={"type": "visitor", "answers": {"experience_rating": "3", "comment": "Encore."}})
+    assert duplicate.status_code == 409
+    summary = client.get('/api/feedback/summary').get_json()
+    assert summary["count"] == 1
+    assert summary["average"] == 5.0
+    with client.application.app_context():
+        assert ProductFeedback.query.count() == 1
+
+
+def test_landing_displays_visitor_experience_average(client):
+    response = client.post('/api/feedback', json={
+        "type": "visitor",
+        "answers": {"ease_rating": "5", "design_rating": "4", "experience_rating": "4"},
+    })
+    assert response.status_code == 201
+    landing = client.get('/')
+    assert '★ 4.0'.encode() in landing.data
+    assert '1 retour'.encode() in landing.data
+
+
+def test_cookie_consent_is_counted_once_per_visitor(client):
+    assert client.post('/api/analytics/events', json={"event": "cookie_consent_accepted"}).status_code == 204
+    assert client.post('/api/analytics/events', json={"event": "cookie_consent_accepted"}).status_code == 204
+    with client.application.app_context():
+        assert AnalyticsEvent.query.filter_by(event_name="cookie_consent_accepted").count() == 1
+
+
+def test_feedback_tab_is_admin_only(client):
+    public = client.get('/')
+    assert b'feedback-fab' in public.data
+    with client.session_transaction() as session:
+        session['admin_authenticated'] = True
+    admin = client.get('/admin?tab=feedback')
+    assert admin.status_code == 200
+    assert 'Feedback &amp; Expérience'.encode() in admin.data
+    assert b'feedback-fab' not in admin.data

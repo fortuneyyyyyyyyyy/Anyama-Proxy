@@ -149,6 +149,32 @@ class Review(db.Model):
             return self.abuse_flags or "Aucun signal"
 
 
+class ProductFeedback(db.Model):
+    __tablename__ = "product_feedback"
+    id = db.Column(db.Integer, primary_key=True)
+    visitor_id = db.Column(db.String(64), nullable=False, index=True)
+    feedback_type = db.Column(db.String(20), nullable=False, index=True)
+    answers = db.Column(db.Text, nullable=False)
+    artisan_id = db.Column(db.Integer, db.ForeignKey("artisans.id"), nullable=True, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    artisan = db.relationship("Artisan", backref=db.backref("product_feedback", lazy=True))
+
+    @property
+    def answers_display(self):
+        try:
+            return json.loads(self.answers or "{}")
+        except (TypeError, json.JSONDecodeError):
+            return {}
+
+
+class AnalyticsEvent(db.Model):
+    __tablename__ = "analytics_events"
+    id = db.Column(db.Integer, primary_key=True)
+    visitor_id = db.Column(db.String(64), nullable=False, index=True)
+    event_name = db.Column(db.String(60), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+
 def admin_configured():
     return bool(os.getenv("ADMIN_EMAIL") and (os.getenv("ADMIN_PASSWORD") or os.getenv("ADMIN_PASSWORD_HASH")))
 
@@ -282,7 +308,18 @@ def create_app(test_config=None):
         if zone:
             query = query.filter_by(zone=zone)
         artisans = query.order_by(Artisan.is_featured.desc(), Artisan.created_at.desc()).all()
-        return render_template("index.html", artisans=artisans, q=q, category=category, zone=zone, categories=CATEGORIES, zones=ZONES)
+        visitor_feedback = ProductFeedback.query.filter_by(feedback_type="visitor").all()
+        ratings = []
+        for item in visitor_feedback:
+            try:
+                rating = int(item.answers_display.get("experience_rating"))
+                if 1 <= rating <= 5:
+                    ratings.append(rating)
+            except (TypeError, ValueError):
+                pass
+        feedback_average = round(sum(ratings) / len(ratings), 1) if ratings else None
+        return render_template("index.html", artisans=artisans, q=q, category=category, zone=zone, categories=CATEGORIES, zones=ZONES,
+                               feedback_average=feedback_average, feedback_count=len(ratings))
 
     @app.get("/artisan/<int:artisan_id>")
     def artisan_detail(artisan_id):
@@ -467,6 +504,65 @@ def create_app(test_config=None):
         )
         return jsonify({"success": True, "message": "Votre signalement a été transmis à l’administration."}), 201
 
+    @app.post("/api/feedback")
+    def api_feedback():
+        payload = request.get_json(silent=True) or {}
+        feedback_type = str(payload.get("type", "")).strip().lower()
+        if feedback_type not in {"visitor", "artisan"}:
+            return jsonify({"success": False, "error": "Choisissez un parcours valide."}), 400
+        answers = payload.get("answers") or {}
+        if not isinstance(answers, dict) or not answers:
+            return jsonify({"success": False, "error": "Répondez au moins à une question."}), 400
+        cleaned_answers = {str(key)[:80]: str(value).strip()[:1000] for key, value in answers.items() if str(value).strip()}
+        if not cleaned_answers:
+            return jsonify({"success": False, "error": "Les réponses sont vides."}), 400
+        visitor_id = ensure_visitor_id()
+        recent = ProductFeedback.query.filter_by(visitor_id=visitor_id, feedback_type=feedback_type).filter(ProductFeedback.created_at >= datetime.utcnow() - timedelta(days=1)).first()
+        if recent:
+            return jsonify({"success": False, "error": "Merci, votre feedback a déjà été enregistré récemment."}), 409
+        artisan_id = payload.get("artisan_id") if feedback_type == "artisan" else None
+        if artisan_id:
+            artisan = db.session.get(Artisan, artisan_id)
+            if not artisan:
+                artisan_id = None
+        feedback = ProductFeedback(visitor_id=visitor_id, feedback_type=feedback_type,
+                                   answers=json.dumps(cleaned_answers, ensure_ascii=False), artisan_id=artisan_id)
+        db.session.add(feedback)
+        db.session.commit()
+        send_admin_notification(
+            f"Nouveau feedback {('visiteur' if feedback_type == 'visitor' else 'artisan')} — Anyama Proxy",
+            f"<h2>Feedback produit reçu</h2><p><strong>Parcours :</strong> {escape('Visiteur' if feedback_type == 'visitor' else 'Artisan / professionnel')}</p><p><strong>Réponses :</strong> {escape(' · '.join(f'{key}: {value}' for key, value in cleaned_answers.items()))}</p>",
+            "feedback",
+        )
+        return jsonify({"success": True, "message": "Merci, votre feedback a bien été enregistré."}), 201
+
+    @app.post("/api/analytics/events")
+    def api_analytics_event():
+        payload = request.get_json(silent=True) or {}
+        event_name = str(payload.get("event", "")).strip().lower()
+        if event_name not in {"page_view", "cookie_consent_accepted"}:
+            return jsonify({"success": False, "error": "Événement invalide."}), 400
+        visitor_id = ensure_visitor_id()
+        day_start = datetime.utcnow() - timedelta(days=1)
+        duplicate = AnalyticsEvent.query.filter_by(visitor_id=visitor_id, event_name=event_name).filter(AnalyticsEvent.created_at >= day_start).first()
+        if not duplicate:
+            db.session.add(AnalyticsEvent(visitor_id=visitor_id, event_name=event_name))
+            db.session.commit()
+        return ("", 204)
+
+    @app.get("/api/feedback/summary")
+    def api_feedback_summary():
+        visitor_feedback = ProductFeedback.query.filter_by(feedback_type="visitor").all()
+        ratings = []
+        for item in visitor_feedback:
+            value = item.answers_display.get("experience_rating")
+            try:
+                if 1 <= int(value) <= 5:
+                    ratings.append(int(value))
+            except (TypeError, ValueError):
+                pass
+        return jsonify({"success": True, "count": len(visitor_feedback), "average": round(sum(ratings) / len(ratings), 1) if ratings else None})
+
     @app.route("/admin/login", methods=["GET", "POST"])
     def admin_login():
         if request.method == "POST":
@@ -496,7 +592,10 @@ def create_app(test_config=None):
         return render_template("admin_dashboard.html", artisans=Artisan.query.order_by(Artisan.created_at.desc()).all(),
                                reports=ProfileReport.query.order_by(ProfileReport.created_at.desc()).all(),
                                report_statuses=REPORT_STATUSES, report_types=REPORT_TYPES,
-                               reviews=Review.query.order_by(Review.created_at.desc()).all(), review_statuses=REVIEW_STATUSES)
+                               reviews=Review.query.order_by(Review.created_at.desc()).all(), review_statuses=REVIEW_STATUSES,
+                               feedback=ProductFeedback.query.order_by(ProductFeedback.created_at.desc()).all(),
+                               consent_count=AnalyticsEvent.query.filter_by(event_name="cookie_consent_accepted").count(),
+                               visit_count=AnalyticsEvent.query.filter_by(event_name="page_view").count())
 
     @app.post("/admin/artisans/<int:artisan_id>/status")
     @admin_required

@@ -18,6 +18,10 @@ Anyama Proxy est un annuaire local pour trouver rapidement un artisan à Anyama.
 - Notifications e-mail Resend pour les inscriptions et doléances, avec lien vers l’onglet admin correspondant.
 - Pages légales V2 harmonisées : mentions légales, confidentialité, cookies et CGU.
 - Bannière cookies affichée uniquement sur l’accueil avec les actions **Compris** et **En savoir plus**, mémorisée localement.
+- Bouton flottant **Feedback & Expérience** sur les pages publiques uniquement, avec parcours Visiteur et Artisan / professionnel.
+- Onglet admin **Feedback & Expérience** avec réponses anonymisées, identifiant visiteur technique, métriques visiteurs/artisans et compteur des consentements « Compris ».
+- Mesure interne et anonyme des visites quotidiennes et du taux `consentements « Compris » / visites`, sans publicité ni outil d’analyse externe.
+- La landing affiche dynamiquement la note moyenne d’expérience des visiteurs, ses étoiles et le nombre de retours via `/api/feedback/summary`.
 - PWA installable, service worker et cache du shell statique.
 
 ## Déploiement
@@ -61,7 +65,13 @@ Les signalements de profil sont centralisés dans l’onglet **Signalements**. L
 
 L’onglet **Avis** permet de publier, rejeter ou masquer les avis visiteurs. Les actions de modération restent protégées par la session administrateur.
 
-Les notifications Resend ouvrent le dashboard avec `?tab=artisans` ou `?tab=reports`. L’authentification reste obligatoire. La requête serveur inclut un `User-Agent` compatible avec Resend ; en cas d’échec d’envoi, la donnée soumise reste enregistrée.
+Les notifications Resend ouvrent le dashboard avec `?tab=artisans`, `?tab=reports` ou `?tab=feedback`. L’authentification reste obligatoire. La requête serveur inclut un `User-Agent` compatible avec Resend ; en cas d’échec d’envoi, la donnée soumise reste enregistrée.
+
+### V2 Verso — Feedback & Expérience
+
+Le bouton flottant n’est pas rendu dans l’espace `/admin`. Il ouvre un formulaire court à deux parcours. Les réponses sont enregistrées dans `product_feedback` avec un `visitor_id` technique, le type de répondant, les réponses JSON et la date. Un même visiteur ne peut pas renvoyer le même parcours dans les 24 heures.
+
+Les événements `page_view` et `cookie_consent_accepted` sont stockés dans `analytics_events`. Ils ne contiennent ni adresse IP, ni identité personnelle, ni données publicitaires. Le suivi des visites est limité à une occurrence par visiteur et par jour ; le consentement « Compris » est dédupliqué par visiteur et par jour. Le dashboard permet de comparer le volume de visites et le nombre de consentements.
 
 ## Pages légales et spécifications
 
@@ -106,8 +116,8 @@ frontend/legal/                # documents légaux
 frontend/assets/               # logos et assets
 ```
 
-**Version V2 finalisée — dernière mise à jour : 22 septembre 2026.**
+**Version V2 Verso en préparation — dernière mise à jour : 23 septembre 2026.**
 git add .
-git commit -m "la V2 termineyyyy"
+git commit -m "la V2 Verso termineyyyy"
 
 git push -u origin main
