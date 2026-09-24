@@ -1,32 +1,38 @@
 {% extends "base.html" %}
 {% block title %}Administration — Anyama Proxy{% endblock %}
 {% block content %}
+{% set rejected_artisans = artisans|selectattr('status', 'equalto', 'rejected')|list %}
+{% set active_artisans = artisans|rejectattr('status', 'equalto', 'rejected')|list %}
+{% set rejected_reports = reports|selectattr('status', 'equalto', 'rejected')|list %}
+{% set active_reports = reports|rejectattr('status', 'equalto', 'rejected')|list %}
+{% set history_count = rejected_artisans|length + rejected_reports|length %}
 <section class="admin-shell admin-body" data-admin-dashboard>
   <div class="admin-heading">
     <div>
       <p class="eyebrow">MODÉRATION / ESPACE PRIVÉ</p>
       <h1>Tableau de bord</h1>
-      <p><strong>{{ artisans|length }}</strong> profils · <strong>{{ reports|length }}</strong> signalements · <strong>{{ reviews|length }}</strong> avis</p>
+      <p><strong>{{ active_artisans|length }}</strong> profils · <strong>{{ active_reports|length }}</strong> signalements · <strong>{{ reviews|length }}</strong> avis</p>
     </div>
   </div>
 
   <div class="admin-tabs" role="tablist" aria-label="Sections de modération">
-    <button class="admin-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="artisans-panel" data-tab-target="artisans-panel">Artisans <span>{{ artisans|length }}</span></button>
-    <button class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="reports-panel" data-tab-target="reports-panel">Signalements <span>{{ reports|length }}</span></button>
+    <button class="admin-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="artisans-panel" data-tab-target="artisans-panel">Artisans <span>{{ active_artisans|length }}</span></button>
+    <button class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="reports-panel" data-tab-target="reports-panel">Signalements <span>{{ active_reports|length }}</span></button>
     <button class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="reviews-panel" data-tab-target="reviews-panel">Avis <span>{{ reviews|length }}</span></button>
     <button class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="feedback-panel" data-tab-target="feedback-panel">Feedback &amp; Expérience <span>{{ feedback|length }}</span></button>
+    <button class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="history-panel" data-tab-target="history-panel">Historique <span>{{ history_count }}</span></button>
   </div>
 
   <section class="admin-panel is-active" id="artisans-panel" role="tabpanel">
     <div class="admin-card">
-      <div class="admin-card-heading"><div><p class="eyebrow">ANNUAIRE</p><h2>Artisans</h2></div><p class="admin-result-count" data-result-count>{{ artisans|length }} résultat(s)</p></div>
+      <div class="admin-card-heading"><div><p class="eyebrow">ANNUAIRE</p><h2>Artisans</h2></div><p class="admin-result-count" data-result-count>{{ active_artisans|length }} résultat(s)</p></div>
       <label class="admin-search"><span aria-hidden="true">⌕</span><input type="search" id="artisan-search" placeholder="Rechercher par nom, métier, quartier ou téléphone…" aria-label="Rechercher un artisan"></label>
       <div class="admin-table admin-artisans-list" id="artisans-list">
-        {% for artisan in artisans %}
+        {% for artisan in active_artisans %}
         <article class="admin-row admin-artisan-item" data-search="{{ (artisan.name ~ ' ' ~ artisan.category ~ ' ' ~ artisan.zone ~ ' ' ~ artisan.phone ~ ' ' ~ artisan.service)|lower }}">
           <div class="admin-person"><span class="admin-avatar">{{ artisan.name[:1] }}</span><div><strong>{{ artisan.name }}</strong><span>{{ artisan.category }} · {{ artisan.zone }}</span><small>{{ artisan.phone or 'Téléphone non renseigné' }}</small></div></div>
           <span class="badge {{ artisan.status }}">{{ artisan.status }}</span>
-          <div class="row-actions">{% if artisan.status == 'pending' %}<form method="post" action="{{ url_for('admin_artisan_status', artisan_id=artisan.id) }}"><input type="hidden" name="action" value="approve"><button type="submit">Valider et publier</button></form>{% elif artisan.status == 'approved' %}<form method="post" action="{{ url_for('admin_artisan_status', artisan_id=artisan.id) }}"><input type="hidden" name="action" value="approve"><button type="submit">Maintenir publié</button></form>{% endif %}<form method="post" action="{{ url_for('admin_artisan_status', artisan_id=artisan.id) }}"><input type="hidden" name="action" value="withdraw"><button class="danger" type="submit">Retirer</button></form></div>
+          <div class="row-actions">{% if artisan.status == 'pending' %}<form method="post" action="{{ url_for('admin_artisan_status', artisan_id=artisan.id) }}"><input type="hidden" name="action" value="approve"><button type="submit">Valider et publier</button></form><form method="post" action="{{ url_for('admin_artisan_status', artisan_id=artisan.id) }}" data-confirm-history="1"><input type="hidden" name="action" value="reject"><button class="secondary" type="submit">Refuser</button></form>{% elif artisan.status == 'approved' %}<form method="post" action="{{ url_for('admin_artisan_status', artisan_id=artisan.id) }}"><input type="hidden" name="action" value="approve"><button type="submit">Maintenir publié</button></form>{% endif %}<form method="post" action="{{ url_for('admin_artisan_status', artisan_id=artisan.id) }}"><input type="hidden" name="action" value="withdraw"><button class="danger" type="submit">Retirer</button></form></div>
         </article>
         {% else %}<p class="admin-empty">Aucun profil.</p>{% endfor %}
       </div>
@@ -36,13 +42,15 @@
 
   <section class="admin-panel" id="reports-panel" role="tabpanel" hidden>
     <div class="admin-card">
-      <div class="admin-card-heading"><div><p class="eyebrow">CONFIANCE COMMUNAUTAIRE</p><h2>Signalements de profils</h2></div><p class="admin-result-count">{{ reports|length }} signalement(s)</p></div>
+      <div class="admin-card-heading"><div><p class="eyebrow">CONFIANCE COMMUNAUTAIRE</p><h2>Signalements de profils</h2></div><p class="admin-result-count">{{ active_reports|length }} signalement(s)</p></div>
       <div class="admin-table">
-        {% for item in reports %}
-        <article class="admin-row report-admin-row report-type-{{ item.report_type }}"><div class="admin-person"><span class="admin-avatar admin-avatar-soft">{{ item.artisan_name[:1] }}</span><div><strong>{{ item.artisan_name }}</strong><span class="report-type-label">{{ report_types.get(item.report_type, item.report_type) }}</span><small>Profil exposé : {{ item.snapshot_display }}</small>{% if item.report_type == 'error' and item.proposed_profile %}<div class="correction-diff"><strong>Comparaison proposée</strong>{% for row in item.comparison_rows %}{% if row.changed %}<div class="diff-row"><span class="diff-label">{{ row.label }}</span><span class="diff-old">{{ row.old or 'Vide' }}</span><span class="diff-arrow">→</span><span class="diff-new">{{ row.new or 'Vide' }}</span></div>{% endif %}{% endfor %}</div>{% endif %}<small>Motifs : {{ item.reasons_display }}{% if item.details %} · {{ item.details }}{% endif %}</small>{% if item.reporter_name or item.reporter_phone or item.reporter_email %}<small>Visiteur : {{ item.reporter_name or 'Anonyme' }}{% if item.reporter_phone %} · {{ item.reporter_phone }}{% endif %}{% if item.reporter_email %} · {{ item.reporter_email }}{% endif %}</small>{% endif %}</div></div><span class="badge {{ item.status }}">{{ report_statuses.get(item.status, item.status) }}</span>{% if item.status == 'pending' %}<div class="row-actions"><form method="post" action="{{ url_for('admin_report_status', report_id=item.id) }}"><input type="hidden" name="action" value="process"><button type="submit">{% if item.report_type == 'error' and item.proposed_profile %}Accepter la correction{% else %}Marquer traité{% endif %}</button></form>{% if item.artisan_id %}<form method="post" action="{{ url_for('admin_report_status', report_id=item.id) }}"><input type="hidden" name="action" value="withdraw"><button class="danger" type="submit">Retirer le profil</button></form>{% endif %}<form method="post" action="{{ url_for('admin_report_status', report_id=item.id) }}"><input type="hidden" name="action" value="reject"><button class="secondary" type="submit">Refuser</button></form></div>{% endif %}</article>
+        {% for item in active_reports %}
+        <article class="admin-row report-admin-row report-type-{{ item.report_type }}"><div class="admin-person"><span class="admin-avatar admin-avatar-soft">{{ item.artisan_name[:1] }}</span><div><strong>{{ item.artisan_name }}</strong><span class="report-type-label">{{ report_types.get(item.report_type, item.report_type) }}</span><small>Profil exposé : {{ item.snapshot_display }}</small>{% if item.report_type == 'error' and item.proposed_profile %}<div class="correction-diff"><strong>Comparaison proposée</strong>{% for row in item.comparison_rows %}{% if row.changed %}<div class="diff-row"><span class="diff-label">{{ row.label }}</span><span class="diff-old">{{ row.old or 'Vide' }}</span><span class="diff-arrow">→</span><span class="diff-new">{{ row.new or 'Vide' }}</span></div>{% endif %}{% endfor %}</div>{% endif %}<small>Motifs : {{ item.reasons_display }}{% if item.details %} · {{ item.details }}{% endif %}</small>{% if item.reporter_name or item.reporter_phone or item.reporter_email %}<small>Visiteur : {{ item.reporter_name or 'Anonyme' }}{% if item.reporter_phone %} · {{ item.reporter_phone }}{% endif %}{% if item.reporter_email %} · {{ item.reporter_email }}{% endif %}</small>{% endif %}</div></div><span class="badge {{ item.status }}">{{ report_statuses.get(item.status, item.status) }}</span>{% if item.status == 'pending' %}<div class="row-actions"><form method="post" action="{{ url_for('admin_report_status', report_id=item.id) }}"><input type="hidden" name="action" value="process"><button type="submit">{% if item.report_type == 'error' and item.proposed_profile %}Accepter la correction{% else %}Marquer traité{% endif %}</button></form>{% if item.artisan_id %}<form method="post" action="{{ url_for('admin_report_status', report_id=item.id) }}"><input type="hidden" name="action" value="withdraw"><button class="danger" type="submit">Retirer le profil</button></form>{% endif %}<form method="post" action="{{ url_for('admin_report_status', report_id=item.id) }}" data-confirm-history="1"><input type="hidden" name="action" value="reject"><button class="secondary" type="submit">Refuser</button></form></div>{% endif %}</article>
         {% else %}<p class="admin-empty">Aucun signalement.</p>{% endfor %}
       </div>
     </div>
+  </section>
+
   <section class="admin-panel" id="feedback-panel" role="tabpanel" hidden>
     <div class="admin-card feedback-admin-card">
       <div class="admin-card-heading"><div><p class="eyebrow"> OBSERVATION &amp; FEEDBACK</p><h2>Feedback &amp; Expérience</h2><p>Ce que les utilisateurs veulent réellement d’Anyama Proxy.</p></div><p class="admin-result-count">{{ feedback|length }} réponse(s)</p></div>
@@ -66,6 +74,27 @@
       </div>
     </div>
   </section>
+
+  <section class="admin-panel" id="history-panel" role="tabpanel" hidden>
+    <div class="admin-card">
+      <div class="admin-card-heading"><div><p class="eyebrow">ARCHIVE</p><h2>Historique</h2><p>Profils refusés et requêtes non acceptées. Lecture seule — aucune action possible depuis cet onglet.</p></div><p class="admin-result-count">{{ history_count }} élément(s)</p></div>
+      <div class="admin-table history-admin-list">
+        {% for artisan in rejected_artisans %}
+        <article class="admin-row history-row">
+          <div class="admin-person"><span class="admin-avatar">{{ artisan.name[:1] }}</span><div><strong>{{ artisan.name }}</strong><span>{{ artisan.category }} · {{ artisan.zone }}</span><small>Profil refusé · soumis le {{ artisan.created_at.strftime('%d/%m/%Y') }}</small></div></div>
+          <span class="badge rejected">Refusé</span>
+        </article>
+        {% endfor %}
+        {% for item in rejected_reports %}
+        <article class="admin-row history-row">
+          <div class="admin-person"><span class="admin-avatar admin-avatar-soft">{{ item.artisan_name[:1] }}</span><div><strong>{{ item.artisan_name }}</strong><span>{{ report_types.get(item.report_type, item.report_type) }}</span><small>Requête refusée{% if item.processed_at %} · le {{ item.processed_at.strftime('%d/%m/%Y') }}{% endif %}</small></div></div>
+          <span class="badge rejected">Refusé</span>
+        </article>
+        {% endfor %}
+        {% if not rejected_artisans and not rejected_reports %}<p class="admin-empty">Aucun élément dans l'historique.</p>{% endif %}
+      </div>
+    </div>
+  </section>
 </section>
 <script>
 (() => {
@@ -74,7 +103,8 @@
   const panels = [...root.querySelectorAll('.admin-panel')];
   const activateTab = tab => { tabs.forEach(item => { const active = item === tab; item.classList.toggle('is-active', active); item.setAttribute('aria-selected', active); }); panels.forEach(panel => { const active = panel.id === tab.dataset.tabTarget; panel.classList.toggle('is-active', active); panel.hidden = !active; }); };
   tabs.forEach(tab => tab.addEventListener('click', () => activateTab(tab)));
-  const requestedTab = new URLSearchParams(window.location.search).get('tab'); if (requestedTab === 'reports') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'reports-panel')); if (requestedTab === 'reviews') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'reviews-panel')); if (requestedTab === 'feedback') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'feedback-panel')); if (requestedTab === 'artisans') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'artisans-panel'));
+  const requestedTab = new URLSearchParams(window.location.search).get('tab'); if (requestedTab === 'reports') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'reports-panel')); if (requestedTab === 'reviews') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'reviews-panel')); if (requestedTab === 'feedback') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'feedback-panel')); if (requestedTab === 'artisans') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'artisans-panel')); if (requestedTab === 'history') activateTab(tabs.find(tab => tab.dataset.tabTarget === 'history-panel'));
+  root.querySelectorAll('form[data-confirm-history]').forEach(form => form.addEventListener('submit', event => { if (!window.confirm('Refuser cet élément l\'enverra dans l\'historique, de façon irréversible. Confirmer ?')) event.preventDefault(); }));
   const items = [...root.querySelectorAll('.admin-artisan-item')];
   const search = root.querySelector('#artisan-search'); const pagination = root.querySelector('#artisan-pagination'); const count = root.querySelector('[data-result-count]'); let page = 1;
   const pageSize = () => window.matchMedia('(max-width: 700px)').matches ? 6 : 10;

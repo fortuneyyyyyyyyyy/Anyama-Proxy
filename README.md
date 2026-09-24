@@ -118,6 +118,6 @@ frontend/assets/               # logos et assets
 
 **Version V2 Verso en préparation — dernière mise à jour : 23 septembre 2026.**
 git add .
-git commit -m "la V2 Verso termineyyyyggyy"
+git commit -m "la V2 Verso termineyyyyggyyh"
 
 git push -u origin main
