@@ -45,7 +45,7 @@
     </div>
   <section class="admin-panel" id="feedback-panel" role="tabpanel" hidden>
     <div class="admin-card feedback-admin-card">
-      <div class="admin-card-heading"><div><p class="eyebrow">V2 VERSO — OBSERVATION &amp; FEEDBACK</p><h2>Feedback &amp; Expérience</h2><p>Ce que les utilisateurs veulent réellement d’Anyama Proxy.</p></div><p class="admin-result-count">{{ feedback|length }} réponse(s)</p></div>
+      <div class="admin-card-heading"><div><p class="eyebrow"> OBSERVATION &amp; FEEDBACK</p><h2>Feedback &amp; Expérience</h2><p>Ce que les utilisateurs veulent réellement d’Anyama Proxy.</p></div><p class="admin-result-count">{{ feedback|length }} réponse(s)</p></div>
       <div class="feedback-admin-metrics"><div><strong>{{ feedback|selectattr('feedback_type', 'equalto', 'visitor')|list|length }}</strong><span>feedback visiteurs</span></div><div><strong>{{ feedback|selectattr('feedback_type', 'equalto', 'artisan')|list|length }}</strong><span>feedback artisans</span></div><div><strong>{{ visit_count }}</strong><span>visites anonymes</span></div><div><strong>{{ consent_count }}</strong><span>« Compris » cookie · {{ ((consent_count / visit_count * 100)|round(1)) if visit_count else 0 }}%</span></div></div>
       <div class="admin-feedback-intro"><strong>Lecture rapide</strong><span>Les réponses sont anonymes et rattachées à un identifiant technique visiteur. Les clics « Compris » sont comptés une fois par visiteur.</span></div>
       <div class="admin-table feedback-admin-list">
