@@ -682,3 +682,88 @@ html[data-theme="dark"] .feedback-type-button:focus-visible,
 html[data-theme="dark"] .feedback-type-button.is-selected { color: var(--on-dark); border-color: var(--accent-strong); background: var(--accent-soft); }
 html[data-theme="dark"] .feedback-close { color: var(--ink); border-color: var(--line); }
 html[data-theme="dark"] .feedback-card .morph-button.dark { color: var(--on-dark); background: var(--dark); }
+
+/* --- Cohérence UI/UX : rotation des flèches au survol (liens, boutons, cartes) --- */
+svg[class*="lucide-arrow-"] { transition: transform .25s ease; }
+:is(a, button, summary, .artisan-card, .profile-card):hover svg[class*="lucide-arrow-"],
+:is(a, button, summary, .artisan-card, .profile-card):focus-visible svg[class*="lucide-arrow-"] {
+  transform: rotate(50deg);
+}
+
+/* --- Cohérence UI/UX : éviter le chevauchement bannière cookie / bouton feedback flottant --- */
+body:has(.cookie-banner:not([hidden])) .feedback-fab { bottom: 92px; }
+@media (max-width: 620px) {
+  body:has(.cookie-banner:not([hidden])) .feedback-fab { bottom: 130px; }
+}
+
+/* --- Cohérence UI/UX : champs de formulaire identiques partout (référence : formulaire d'inscription) --- */
+.reporter-fields label,
+.report-reasons-label,
+.correction-fields-grid label {
+  font: 500 12px 'DM Mono';
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.reporter-fields input,
+.report-reasons,
+.correction-fields-grid input,
+.correction-fields-grid textarea,
+.feedback-question input,
+.feedback-question textarea,
+.feedback-question select,
+.feedback-card > form > label select {
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.72);
+  border-radius: 14px;
+  padding: 13px 14px;
+  color: var(--ink);
+  outline: none;
+  transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+.reporter-fields input:focus,
+.report-reasons:focus,
+.correction-fields-grid input:focus,
+.correction-fields-grid textarea:focus,
+.feedback-question input:focus,
+.feedback-question textarea:focus,
+.feedback-question select:focus {
+  border-color: rgba(248,32,0,.55);
+  box-shadow: 0 0 0 4px rgba(248,32,0,.08);
+}
+
+/* --- Cohérence UI/UX : champs de formulaire identiques partout (référence : formulaire d'inscription) --- */
+.reporter-fields label,
+.report-reasons-label,
+.correction-fields-grid label {
+  font: 500 12px 'DM Mono';
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.reporter-fields input,
+.report-reasons,
+.correction-fields-grid input,
+.correction-fields-grid textarea,
+.feedback-question input,
+.feedback-question textarea,
+.feedback-question select,
+.feedback-card > form > label select {
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.72);
+  border-radius: 14px;
+  padding: 13px 14px;
+  color: var(--ink);
+  outline: none;
+  transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+.reporter-fields input:focus,
+.report-reasons:focus,
+.correction-fields-grid input:focus,
+.correction-fields-grid textarea:focus,
+.feedback-question input:focus,
+.feedback-question textarea:focus,
+.feedback-question select:focus {
+  border-color: rgba(248,32,0,.55);
+  box-shadow: 0 0 0 4px rgba(248,32,0,.08);
+}
