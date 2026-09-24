@@ -380,9 +380,9 @@ def create_app(test_config=None):
         if zone:
             query = query.filter_by(zone=zone)
         artisans = query.order_by(Artisan.is_featured.desc(), Artisan.created_at.desc()).all()
-        visitor_feedback = ProductFeedback.query.filter_by(feedback_type="visitor").all()
+        experience_feedback = ProductFeedback.query.filter(ProductFeedback.feedback_type.in_(["visitor", "artisan"])).all()
         ratings = []
-        for item in visitor_feedback:
+        for item in experience_feedback:
             try:
                 rating = int(item.answers_display.get("experience_rating"))
                 if 1 <= rating <= 5:
@@ -646,16 +646,16 @@ def create_app(test_config=None):
 
     @app.get("/api/feedback/summary")
     def api_feedback_summary():
-        visitor_feedback = ProductFeedback.query.filter_by(feedback_type="visitor").all()
+        experience_feedback = ProductFeedback.query.filter(ProductFeedback.feedback_type.in_(["visitor", "artisan"])).all()
         ratings = []
-        for item in visitor_feedback:
+        for item in experience_feedback:
             value = item.answers_display.get("experience_rating")
             try:
                 if 1 <= int(value) <= 5:
                     ratings.append(int(value))
             except (TypeError, ValueError):
                 pass
-        return jsonify({"success": True, "count": len(visitor_feedback), "average": round(sum(ratings) / len(ratings), 1) if ratings else None})
+        return jsonify({"success": True, "count": len(ratings), "average": round(sum(ratings) / len(ratings), 1) if ratings else None})
 
     @app.route("/admin/login", methods=["GET", "POST"])
     def admin_login():
@@ -717,13 +717,23 @@ def create_app(test_config=None):
         journeys = []
         for (visitor_id, day), events in sorted(journey_groups.items(), key=lambda item: max(event.created_at for event in item[1]), reverse=True)[:16]:
             journeys.append({"visitor": visitor_id[:8], "date": day.strftime("%d/%m/%Y"), "events": sorted(events, key=lambda event: event.created_at)})
+        feedback_items = ProductFeedback.query.order_by(ProductFeedback.created_at.desc()).all()
+        feedback_ratings = []
+        for item in feedback_items:
+            try:
+                rating = int(item.answers_display.get("experience_rating"))
+                if 1 <= rating <= 5:
+                    feedback_ratings.append(rating)
+            except (TypeError, ValueError):
+                pass
+        feedback_average = round(sum(feedback_ratings) / len(feedback_ratings), 1) if feedback_ratings else None
         archived_artisans = Artisan.query.filter(Artisan.status.in_(["rejected", "withdrawn"])).order_by(func.coalesce(Artisan.archived_at, Artisan.withdrawn_at, Artisan.created_at).desc()).all()
         archived_reports = ProfileReport.query.filter_by(status="rejected").order_by(func.coalesce(ProfileReport.processed_at, ProfileReport.created_at).desc()).all()
         return render_template("admin_dashboard.html", artisans=artisans,
                                reports=ProfileReport.query.order_by(ProfileReport.created_at.desc()).all(),
                                report_statuses=REPORT_STATUSES, report_types=REPORT_TYPES,
                                reviews=Review.query.order_by(Review.created_at.desc()).all(), review_statuses=REVIEW_STATUSES,
-                               feedback=ProductFeedback.query.order_by(ProductFeedback.created_at.desc()).all(),
+                               feedback=feedback_items, feedback_average=feedback_average, feedback_rating_count=len(feedback_ratings),
                                consent_count=db.session.query(func.count(func.distinct(AnalyticsEvent.visitor_id))).filter_by(event_name="cookie_consent_accepted").scalar() or 0,
                                visit_count=db.session.query(func.count(func.distinct(AnalyticsEvent.visitor_id))).filter_by(event_name="page_view").scalar() or 0,
                                analytics_daily=analytics_daily, analytics_events=analytics_events[-250:], event_count=len(analytics_events),

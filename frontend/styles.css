@@ -798,3 +798,8 @@ html[data-theme="dark"] .feedback-card > form > label select option {
   background-color: var(--bg);
   color: var(--ink);
 }
+
+.feedback-invite-dialog{border:0;padding:0;background:transparent;max-width:min(94vw,520px);width:100%;color:var(--ink)}.feedback-invite-dialog::backdrop{background:rgba(23,18,14,.66);backdrop-filter:blur(5px)}.feedback-invite-card{padding:2.15rem;border:1px solid var(--line);border-radius:24px;background:var(--bg);box-shadow:0 25px 80px #17120e33}.feedback-invite-icon{display:grid;place-items:center;width:46px;height:46px;margin-bottom:1.3rem;border-radius:15px;background:var(--accent-soft);color:var(--accent-strong)}.feedback-invite-icon svg{width:22px}.feedback-invite-card h2{max-width:390px;margin:.45rem 0 .8rem;font-size:clamp(1.8rem,5vw,2.5rem);letter-spacing:-.07em;line-height:.98}.feedback-invite-card>p:not(.eyebrow){color:var(--muted);line-height:1.55;margin:0;max-width:420px}.feedback-invite-actions{display:flex;flex-wrap:wrap;gap:.65rem;margin-top:1.6rem}.feedback-invite-actions .morph-button{font-size:12px}.feedback-invite-dialog[open]{animation:feedback-dialog-in .2s ease-out}@keyframes feedback-dialog-in{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}@media(max-width:650px){.feedback-invite-card{padding:1.5rem}.feedback-invite-actions{display:grid}.feedback-invite-actions .morph-button{width:100%}}@media(prefers-reduced-motion:reduce){.feedback-invite-dialog[open]{animation:none}}
+html[data-theme="dark"] .feedback-invite-card{background:var(--surface);border-color:var(--line);color:var(--ink)}
+.feedback-stat .trust-value strong svg{width:18px;height:18px;vertical-align:-3px;stroke-width:2.2}
+.feedback-rating .star-button svg{width:28px;height:28px;display:block}
