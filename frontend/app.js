@@ -187,3 +187,28 @@ function initPublicFeedback() {
   const render = () => { questions.innerHTML=''; const items=type.value==='artisan'?artisan:type.value==='visitor'?visitor:[]; items.forEach(([name,label,kind],i)=>{const wrap=document.createElement('label');wrap.className='feedback-question';wrap.innerHTML=`<span>${i+1}. ${label}</span>`;if(kind==='rating'){const picker=document.createElement('div');picker.className='star-picker feedback-rating';picker.setAttribute('role','radiogroup');picker.setAttribute('aria-label','Choisir une note de 1 à 5 étoiles');const input=document.createElement('input');input.type='hidden';input.name=name;input.value='';picker.append(input);[1,2,3,4,5].forEach(value=>{const button=document.createElement('button');button.type='button';button.className='star-button';button.dataset.rating=value;button.setAttribute('role','radio');button.setAttribute('aria-label',`${value} étoile${value>1?'s':''}`);button.setAttribute('aria-checked','false');button.innerHTML='<i data-lucide="star"></i>';button.addEventListener('click',()=>{input.value=String(value);picker.querySelectorAll('.star-button').forEach(star=>{const selected=Number(star.dataset.rating)<=value;star.innerHTML='<i data-lucide="star"></i>';star.classList.toggle('is-selected',selected);star.setAttribute('aria-checked',String(Number(star.dataset.rating)===value));});window.lucide?.createIcons();});picker.append(button);});wrap.append(picker);}else if(kind==='text'||kind==='textarea'){const f=document.createElement(kind==='textarea'?'textarea':'input');f.name=name;if(kind==='textarea')f.rows=3;f.placeholder='Votre réponse';wrap.append(f);}else{const p=kind.split('|'),s=document.createElement('select');s.name=name;s.innerHTML='<option value="">Choisissez une réponse</option>'+p.slice(1).map(v=>`<option>${v}</option>`).join('');wrap.append(s);}questions.append(wrap);});};
   fab.addEventListener('click',()=>dialog.showModal()); dialog.querySelector('.feedback-close').addEventListener('click',()=>dialog.close()); typeButtons.forEach(button=>button.addEventListener('click',()=>{type.value=button.dataset.feedbackType;typeButtons.forEach(option=>{const selected=option===button;option.classList.toggle('is-selected',selected);option.setAttribute('aria-pressed',String(selected));});render();window.lucide?.createIcons();})); form.addEventListener('submit',async e=>{e.preventDefault();const status=form.querySelector('#feedback-status'),data=new FormData(form),answers={};for(const [k,v] of data.entries())if(k!=='type'&&String(v).trim())answers[k]=String(v).trim();if(!data.get('type')||Object.keys(answers).length<3){status.className='form-feedback error';status.textContent='Choisissez votre parcours et répondez à au moins trois questions.';return;}status.className='form-feedback loading';status.textContent='Envoi en cours…';try{const r=await fetch(`${API_BASE}/api/feedback`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:data.get('type'),answers})});const result=await r.json();if(!r.ok)throw new Error(result.error||'Erreur');status.className='form-feedback success';status.textContent=result.message;form.reset();questions.innerHTML='';typeButtons.forEach(button=>{button.classList.remove('is-selected');button.setAttribute('aria-pressed','false');});setTimeout(()=>dialog.close(),1200);}catch(err){status.className='form-feedback error';status.textContent=err.message||'Impossible d’envoyer le feedback.';}});
 }
+
+
+(() => {
+  const form = document.querySelector('#contact-form');
+  if (!form) return;
+  const feedback = document.querySelector('#contact-feedback');
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(form).entries());
+    feedback.className = 'form-feedback loading';
+    feedback.textContent = 'Envoi en cours…';
+    try {
+      const response = await fetch(`${API_BASE}/api/contact`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Impossible d’envoyer votre message.');
+      feedback.className = 'form-feedback success';
+      feedback.textContent = result.message;
+      form.reset();
+    } catch (error) {
+      feedback.className = 'form-feedback error';
+      feedback.textContent = error.message;
+    }
+  });
+  window.lucide?.createIcons();
+})();
