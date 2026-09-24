@@ -25,6 +25,12 @@ REMOVAL_STATUSES = {"pending": "En attente", "processed": "Retrait effectué", "
 REPORT_STATUSES = {"pending": "En attente", "processed": "Traité", "rejected": "Refusé"}
 REPORT_TYPES = {"error": "Erreur sur les informations", "safety": "Signalement sérieux", "withdraw": "Demande de retrait"}
 REVIEW_STATUSES = {"published": "Publié", "pending": "À vérifier", "rejected": "Rejeté"}
+CONTACT_TYPES = {
+    "error": "Signaler une erreur",
+    "support": "Entrer en contact avec le support technique",
+    "other": "Autre demande",
+}
+CONTACT_STATUSES = {"unread": "Non lu", "read": "Lu"}
 
 
 class Artisan(db.Model):
@@ -178,6 +184,18 @@ class ProductFeedback(db.Model):
             return json.loads(self.answers or "{}")
         except (TypeError, json.JSONDecodeError):
             return {}
+
+
+class ContactMessage(db.Model):
+    __tablename__ = "contact_messages"
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(120), nullable=False)
+    phone = db.Column(db.String(40), nullable=False)
+    submission_type = db.Column(db.String(30), nullable=False, default="other", index=True)
+    message = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="unread", index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    read_at = db.Column(db.DateTime, nullable=True)
 
 
 class AnalyticsEvent(db.Model):
@@ -608,6 +626,31 @@ def create_app(test_config=None):
         )
         return jsonify({"success": True, "message": "Merci, votre feedback a bien été enregistré."}), 201
 
+    @app.route("/api/contact", methods=["POST", "OPTIONS"])
+    def api_contact():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        payload = request.get_json(silent=True) or {}
+        full_name = str(payload.get("full_name", "")).strip()
+        phone = str(payload.get("phone", "")).strip()
+        submission_type = str(payload.get("submission_type", "other")).strip().lower()
+        message = str(payload.get("message", "")).strip()
+        if not full_name or not phone or not message:
+            return jsonify({"success": False, "error": "Renseignez votre nom, votre numéro et votre message."}), 400
+        if len(full_name) > 120 or len(phone) > 40 or len(message) > 3000:
+            return jsonify({"success": False, "error": "Vérifiez la longueur des informations saisies."}), 400
+        if submission_type not in CONTACT_TYPES:
+            return jsonify({"success": False, "error": "Choisissez un type de demande valide."}), 400
+        contact = ContactMessage(full_name=full_name, phone=phone, submission_type=submission_type, message=message)
+        db.session.add(contact)
+        db.session.commit()
+        send_admin_notification(
+            f"Nouveau message de contact — {full_name}",
+            f"<h2>Nouveau message reçu</h2><p><strong>Nom :</strong> {escape(full_name)}</p><p><strong>Numéro / WhatsApp :</strong> {escape(phone)}</p><p><strong>Type :</strong> {escape(CONTACT_TYPES[submission_type])}</p><p><strong>Message :</strong><br>{escape(message).replace(chr(10), '<br>')}</p>",
+            "messages",
+        )
+        return jsonify({"success": True, "message": "Votre message a bien été envoyé et est en cours de traitement."}), 201
+
     @app.post("/api/analytics/events")
     def api_analytics_event():
         payload = request.get_json(silent=True) or {}
@@ -718,6 +761,7 @@ def create_app(test_config=None):
         for (visitor_id, day), events in sorted(journey_groups.items(), key=lambda item: max(event.created_at for event in item[1]), reverse=True)[:16]:
             journeys.append({"visitor": visitor_id[:8], "date": day.strftime("%d/%m/%Y"), "events": sorted(events, key=lambda event: event.created_at)})
         feedback_items = ProductFeedback.query.order_by(ProductFeedback.created_at.desc()).all()
+        contact_messages = ContactMessage.query.order_by(ContactMessage.created_at.desc()).all()
         feedback_ratings = []
         for item in feedback_items:
             try:
@@ -734,6 +778,8 @@ def create_app(test_config=None):
                                report_statuses=REPORT_STATUSES, report_types=REPORT_TYPES,
                                reviews=Review.query.order_by(Review.created_at.desc()).all(), review_statuses=REVIEW_STATUSES,
                                feedback=feedback_items, feedback_average=feedback_average, feedback_rating_count=len(feedback_ratings),
+                               contact_messages=contact_messages, contact_types=CONTACT_TYPES, contact_statuses=CONTACT_STATUSES,
+                               unread_contact_count=sum(1 for item in contact_messages if item.status == "unread"),
                                consent_count=db.session.query(func.count(func.distinct(AnalyticsEvent.visitor_id))).filter_by(event_name="cookie_consent_accepted").scalar() or 0,
                                visit_count=db.session.query(func.count(func.distinct(AnalyticsEvent.visitor_id))).filter_by(event_name="page_view").scalar() or 0,
                                analytics_daily=analytics_daily, analytics_events=analytics_events[-250:], event_count=len(analytics_events),
@@ -824,6 +870,18 @@ def create_app(test_config=None):
         review.updated_at = datetime.utcnow()
         db.session.commit()
         return redirect(url_for("admin_dashboard", tab="reviews"))
+
+    @app.post("/admin/messages/<int:message_id>/status")
+    @admin_required
+    def admin_message_status(message_id):
+        item = ContactMessage.query.get_or_404(message_id)
+        action = request.form.get("action", "read")
+        if action == "unread":
+            item.status, item.read_at = "unread", None
+        else:
+            item.status, item.read_at = "read", datetime.utcnow()
+        db.session.commit()
+        return redirect(url_for("admin_dashboard", tab="messages"))
 
     @app.get("/health")
     def health():
