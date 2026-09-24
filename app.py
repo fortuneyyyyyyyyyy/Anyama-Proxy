@@ -3,6 +3,8 @@ import hmac
 import uuid
 import json
 import os
+import threading
+import time
 from html import escape
 from datetime import datetime, timedelta
 from functools import wraps
@@ -11,7 +13,7 @@ from urllib.request import Request as UrlRequest, urlopen
 
 from flask import Flask, flash, g, jsonify, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import CheckConstraint, UniqueConstraint, func, inspect, or_, text
+from sqlalchemy import CheckConstraint, UniqueConstraint, func, inspect, or_, select, text
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash
 
@@ -39,10 +41,16 @@ class Artisan(db.Model):
     is_featured = db.Column(db.Boolean, nullable=False, default=False)
     status = db.Column(db.String(20), nullable=False, default="approved", index=True)
     withdrawn_at = db.Column(db.DateTime, nullable=True)
+    archived_at = db.Column(db.DateTime, nullable=True, index=True)
     view_count = db.Column(db.Integer, nullable=False, default=0)
     phone_click_count = db.Column(db.Integer, nullable=False, default=0)
     whatsapp_click_count = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    @property
+    def archive_expires_at(self):
+        archived_on = self.archived_at or self.withdrawn_at or self.created_at
+        return archived_on + timedelta(days=30)
 
     def to_dict(self):
         average, count = review_summary(self.id)
@@ -91,6 +99,11 @@ class ProfileReport(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     processed_at = db.Column(db.DateTime, nullable=True)
     artisan = db.relationship("Artisan", backref=db.backref("profile_reports", lazy=True))
+
+    @property
+    def archive_expires_at(self):
+        archived_on = self.processed_at or self.created_at
+        return archived_on + timedelta(days=30)
 
 
 
@@ -172,6 +185,7 @@ class AnalyticsEvent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     visitor_id = db.Column(db.String(64), nullable=False, index=True)
     event_name = db.Column(db.String(60), nullable=False, index=True)
+    page_path = db.Column(db.String(200), nullable=True, index=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
 
 
@@ -265,6 +279,41 @@ def admin_required(view):
     return wrapped
 
 
+def delete_archived_artisan(artisan):
+    """Hard-delete an archived artisan and detach or remove dependent records safely."""
+    artisan_id = artisan.id
+    Review.query.filter_by(artisan_id=artisan_id).delete(synchronize_session=False)
+    ProductFeedback.query.filter_by(artisan_id=artisan_id).update({ProductFeedback.artisan_id: None}, synchronize_session=False)
+    ProfileReport.query.filter_by(artisan_id=artisan_id).update({ProfileReport.artisan_id: None}, synchronize_session=False)
+    RemovalRequest.query.filter_by(artisan_id=artisan_id).update({RemovalRequest.artisan_id: None}, synchronize_session=False)
+    db.session.delete(artisan)
+
+
+def purge_expired_history(now=None):
+    """Remove rejected/withdrawn artisans and rejected reports after 30 days."""
+    now = now or datetime.utcnow()
+    cutoff = now - timedelta(days=30)
+    expired_artisan_ids = select(Artisan.id).where(
+        Artisan.status.in_(["rejected", "withdrawn"]),
+        func.coalesce(Artisan.archived_at, Artisan.withdrawn_at, Artisan.created_at) <= cutoff,
+    )
+    artisan_count = db.session.query(Artisan.id).filter(Artisan.id.in_(expired_artisan_ids)).count()
+    db.session.query(Review).filter(Review.artisan_id.in_(expired_artisan_ids)).delete(synchronize_session=False)
+    db.session.query(ProductFeedback).filter(ProductFeedback.artisan_id.in_(expired_artisan_ids)).update({ProductFeedback.artisan_id: None}, synchronize_session=False)
+    db.session.query(ProfileReport).filter(ProfileReport.artisan_id.in_(expired_artisan_ids)).update({ProfileReport.artisan_id: None}, synchronize_session=False)
+    db.session.query(RemovalRequest).filter(RemovalRequest.artisan_id.in_(expired_artisan_ids)).update({RemovalRequest.artisan_id: None}, synchronize_session=False)
+    db.session.query(Artisan).filter(Artisan.id.in_(expired_artisan_ids)).delete(synchronize_session=False)
+    expired_report_ids = select(ProfileReport.id).where(
+        ProfileReport.status == "rejected",
+        func.coalesce(ProfileReport.processed_at, ProfileReport.created_at) <= cutoff,
+    )
+    report_count = db.session.query(ProfileReport.id).filter(ProfileReport.id.in_(expired_report_ids)).count()
+    db.session.query(ProfileReport).filter(ProfileReport.id.in_(expired_report_ids)).delete(synchronize_session=False)
+    if artisan_count or report_count:
+        db.session.commit()
+    return artisan_count, report_count
+
+
 def create_app(test_config=None):
     app = Flask(__name__)
     database_url = os.getenv("DATABASE_URL", "sqlite:///anyama_proxy.db")
@@ -293,6 +342,29 @@ def create_app(test_config=None):
     @app.context_processor
     def inject_globals():
         return {"current_year": datetime.now().year, "admin_configured": admin_configured()}
+
+    history_purge_state = {"last_run": 0.0}
+    history_purge_lock = threading.Lock()
+
+    @app.before_request
+    def run_backend_history_purge():
+        now_monotonic = time.monotonic()
+        if now_monotonic - history_purge_state["last_run"] < 6 * 60 * 60:
+            return None
+        if not history_purge_lock.acquire(blocking=False):
+            return None
+        try:
+            deleted_artisans, deleted_reports = purge_expired_history()
+            if deleted_artisans or deleted_reports:
+                app.logger.info("Expired admin history purged: %s artisans, %s reports", deleted_artisans, deleted_reports)
+            history_purge_state["last_run"] = now_monotonic
+        except Exception:
+            db.session.rollback()
+            app.logger.exception("Automatic archive retention purge failed")
+            history_purge_state["last_run"] = now_monotonic
+        finally:
+            history_purge_lock.release()
+        return None
 
     @app.get("/")
     def index():
@@ -540,14 +612,36 @@ def create_app(test_config=None):
     def api_analytics_event():
         payload = request.get_json(silent=True) or {}
         event_name = str(payload.get("event", "")).strip().lower()
-        if event_name not in {"page_view", "cookie_consent_accepted"}:
+        allowed_events = {
+            "page_view", "cookie_consent_accepted", "directory_search", "profile_open",
+            "contact_phone", "contact_whatsapp", "report_error_open", "report_safety_open",
+            "report_withdraw_open", "artisan_registration_cta", "artisan_registration_open", "artisan_registration_submit",
+            "directory_open", "feedback_open", "install_prompt",
+        }
+        if event_name not in allowed_events:
             return jsonify({"success": False, "error": "Événement invalide."}), 400
         visitor_id = ensure_visitor_id()
-        day_start = datetime.utcnow() - timedelta(days=1)
-        duplicate = AnalyticsEvent.query.filter_by(visitor_id=visitor_id, event_name=event_name).filter(AnalyticsEvent.created_at >= day_start).first()
-        if not duplicate:
-            db.session.add(AnalyticsEvent(visitor_id=visitor_id, event_name=event_name))
-            db.session.commit()
+        raw_path = str(payload.get("path", "/")).strip()[:300]
+        path_and_fragment = raw_path.split("?", 1)[0]
+        base_path, separator, fragment = path_and_fragment.partition("#")
+        page_path = base_path
+        if not page_path.startswith("/") or page_path.startswith("//"):
+            page_path = "/"
+        if separator:
+            safe_fragment = "".join(character for character in fragment if character.isalnum() or character in "-_" )[:60]
+            if safe_fragment:
+                page_path += f"#{safe_fragment}"
+        page_path = page_path[:200] or "/"
+        if event_name in {"page_view", "cookie_consent_accepted"}:
+            day_start = datetime.combine(datetime.utcnow().date(), datetime.min.time())
+            duplicate_query = AnalyticsEvent.query.filter_by(visitor_id=visitor_id, event_name=event_name).filter(AnalyticsEvent.created_at >= day_start)
+            if event_name == "page_view":
+                duplicate_query = duplicate_query.filter_by(page_path=page_path)
+            duplicate = duplicate_query.first()
+            if duplicate:
+                return ("", 204)
+        db.session.add(AnalyticsEvent(visitor_id=visitor_id, event_name=event_name, page_path=page_path))
+        db.session.commit()
         return ("", 204)
 
     @app.get("/api/feedback/summary")
@@ -589,13 +683,53 @@ def create_app(test_config=None):
     @app.get("/admin")
     @admin_required
     def admin_dashboard():
-        return render_template("admin_dashboard.html", artisans=Artisan.query.order_by(Artisan.created_at.desc()).all(),
+        chart_days = request.args.get("days", type=int) or 14
+        chart_days = chart_days if chart_days in {7, 14, 30, 90} else 14
+        first_day = datetime.utcnow().date() - timedelta(days=chart_days - 1)
+        chart_start = datetime.combine(first_day, datetime.min.time())
+        analytics_events = AnalyticsEvent.query.filter(AnalyticsEvent.created_at >= chart_start).order_by(AnalyticsEvent.created_at.asc()).all()
+        artisans = Artisan.query.order_by(Artisan.created_at.desc()).all()
+        days = [first_day + timedelta(days=index) for index in range(chart_days)]
+        daily_visitors = {day: set() for day in days}
+        daily_signups = {day: 0 for day in days}
+        for event in analytics_events:
+            if event.event_name == "page_view" and event.created_at.date() in daily_visitors:
+                daily_visitors[event.created_at.date()].add(event.visitor_id)
+        for artisan in artisans:
+            if artisan.created_at.date() in daily_signups:
+                daily_signups[artisan.created_at.date()] += 1
+        analytics_daily = [{"date": day.strftime("%d/%m"), "visitors": len(daily_visitors[day]), "signups": daily_signups[day]} for day in days]
+        event_totals = {}
+        journey_groups = {}
+        for event in analytics_events:
+            event_totals[event.event_name] = event_totals.get(event.event_name, 0) + 1
+            journey_groups.setdefault((event.visitor_id, event.created_at.date()), []).append(event)
+        event_labels = {
+            "page_view": "Page vue", "cookie_consent_accepted": "Compris · cookies",
+            "directory_search": "Recherche annuaire", "profile_open": "Profil consulté",
+            "contact_phone": "Clic téléphone", "contact_whatsapp": "Clic WhatsApp",
+            "report_error_open": "Correction ouverte", "report_safety_open": "Signalement ouvert",
+            "report_withdraw_open": "Retrait ouvert", "artisan_registration_cta": "Clic inscription",
+            "artisan_registration_open": "Formulaire inscription ouvert",
+            "artisan_registration_submit": "Inscription envoyée", "feedback_open": "Feedback ouvert",
+            "install_prompt": "Installation proposée",
+        }
+        journeys = []
+        for (visitor_id, day), events in sorted(journey_groups.items(), key=lambda item: max(event.created_at for event in item[1]), reverse=True)[:16]:
+            journeys.append({"visitor": visitor_id[:8], "date": day.strftime("%d/%m/%Y"), "events": sorted(events, key=lambda event: event.created_at)})
+        archived_artisans = Artisan.query.filter(Artisan.status.in_(["rejected", "withdrawn"])).order_by(func.coalesce(Artisan.archived_at, Artisan.withdrawn_at, Artisan.created_at).desc()).all()
+        archived_reports = ProfileReport.query.filter_by(status="rejected").order_by(func.coalesce(ProfileReport.processed_at, ProfileReport.created_at).desc()).all()
+        return render_template("admin_dashboard.html", artisans=artisans,
                                reports=ProfileReport.query.order_by(ProfileReport.created_at.desc()).all(),
                                report_statuses=REPORT_STATUSES, report_types=REPORT_TYPES,
                                reviews=Review.query.order_by(Review.created_at.desc()).all(), review_statuses=REVIEW_STATUSES,
                                feedback=ProductFeedback.query.order_by(ProductFeedback.created_at.desc()).all(),
-                               consent_count=AnalyticsEvent.query.filter_by(event_name="cookie_consent_accepted").count(),
-                               visit_count=AnalyticsEvent.query.filter_by(event_name="page_view").count())
+                               consent_count=db.session.query(func.count(func.distinct(AnalyticsEvent.visitor_id))).filter_by(event_name="cookie_consent_accepted").scalar() or 0,
+                               visit_count=db.session.query(func.count(func.distinct(AnalyticsEvent.visitor_id))).filter_by(event_name="page_view").scalar() or 0,
+                               analytics_daily=analytics_daily, analytics_events=analytics_events[-250:], event_count=len(analytics_events),
+                               event_totals=event_totals, event_labels=event_labels, journeys=journeys, chart_days=chart_days,
+                               archived_artisans=archived_artisans, archived_reports=archived_reports,
+                               history_count=len(archived_artisans) + len(archived_reports))
 
     @app.post("/admin/artisans/<int:artisan_id>/status")
     @admin_required
@@ -603,13 +737,28 @@ def create_app(test_config=None):
         artisan = Artisan.query.get_or_404(artisan_id)
         action = request.form.get("action")
         if action == "approve":
-            artisan.is_approved, artisan.status, artisan.withdrawn_at = True, "approved", None
+            artisan.is_approved, artisan.status, artisan.withdrawn_at, artisan.archived_at = True, "approved", None, None
         elif action in {"disable", "reject"}:
-            artisan.is_approved, artisan.status = False, "rejected"
+            artisan.is_approved, artisan.status, artisan.archived_at = False, "rejected", datetime.utcnow()
+        elif action == "archive":
+            artisan.is_approved, artisan.status, artisan.withdrawn_at, artisan.archived_at = False, "withdrawn", datetime.utcnow(), datetime.utcnow()
         elif action == "withdraw":
-            artisan.is_approved, artisan.status, artisan.withdrawn_at = False, "withdrawn", datetime.utcnow()
+            artisan.is_approved, artisan.status, artisan.withdrawn_at, artisan.archived_at = False, "withdrawn", datetime.utcnow(), datetime.utcnow()
         db.session.commit()
-        return redirect(url_for("admin_dashboard"))
+        destination = "artisans" if action == "approve" else "history" if action in {"reject", "archive", "withdraw"} else "artisans"
+        return redirect(url_for("admin_dashboard", tab=destination, filter="approved" if action == "approve" else None))
+
+    @app.post("/admin/history/artisans/<int:artisan_id>/delete")
+    @admin_required
+    def admin_delete_archived_artisan(artisan_id):
+        artisan = Artisan.query.get_or_404(artisan_id)
+        if artisan.status not in {"rejected", "withdrawn"}:
+            flash("Seuls les artisans de l’historique peuvent être supprimés.", "error")
+            return redirect(url_for("admin_dashboard", tab="history"))
+        delete_archived_artisan(artisan)
+        db.session.commit()
+        flash("L’artisan et les données associées ont été supprimés définitivement.", "success")
+        return redirect(url_for("admin_dashboard", tab="history"))
 
     @app.post("/admin/reports/<int:report_id>/status")
     @admin_required
@@ -629,16 +778,29 @@ def create_app(test_config=None):
                     artisan.service = proposed["service"] or ""
                     artisan.description = proposed["description"] or None
             report.status, report.processed_at = "processed", datetime.utcnow()
-        elif action == "reject":
+        elif action in {"reject", "archive"}:
             report.status, report.processed_at = "rejected", datetime.utcnow()
         elif action == "withdraw":
             report.status, report.processed_at = "processed", datetime.utcnow()
             if report.artisan_id:
                 artisan = db.session.get(Artisan, report.artisan_id)
                 if artisan:
-                    artisan.is_approved, artisan.status, artisan.withdrawn_at = False, "withdrawn", datetime.utcnow()
+                    artisan.is_approved, artisan.status, artisan.withdrawn_at, artisan.archived_at = False, "withdrawn", datetime.utcnow(), datetime.utcnow()
         db.session.commit()
-        return redirect(url_for("admin_dashboard", tab="reports"))
+        destination = "history" if action in {"reject", "archive"} else "reports"
+        return redirect(url_for("admin_dashboard", tab=destination, filter="processed" if destination == "reports" else None))
+
+    @app.post("/admin/history/reports/<int:report_id>/delete")
+    @admin_required
+    def admin_delete_archived_report(report_id):
+        report = ProfileReport.query.get_or_404(report_id)
+        if report.status != "rejected":
+            flash("Seuls les signalements de l’historique peuvent être supprimés.", "error")
+            return redirect(url_for("admin_dashboard", tab="history"))
+        db.session.delete(report)
+        db.session.commit()
+        flash("Le signalement a été supprimé définitivement.", "success")
+        return redirect(url_for("admin_dashboard", tab="history"))
 
     @app.post("/admin/reviews/<int:review_id>/status")
     @admin_required
@@ -678,6 +840,10 @@ def create_app(test_config=None):
         ensure_schema()
         if not os.getenv("DATABASE_URL"):
             seed_artisans()
+        deleted_artisans, deleted_reports = purge_expired_history()
+        history_purge_state["last_run"] = time.monotonic()
+        if deleted_artisans or deleted_reports:
+            app.logger.info("Expired admin history purged at startup: %s artisans, %s reports", deleted_artisans, deleted_reports)
     return app
 
 
@@ -723,6 +889,7 @@ def ensure_schema():
     additions = {
         "status": "VARCHAR(20) NOT NULL DEFAULT 'approved'",
         "withdrawn_at": "TIMESTAMP NULL",
+        "archived_at": "TIMESTAMP NULL",
         "view_count": "INTEGER NOT NULL DEFAULT 0",
         "phone_click_count": "INTEGER NOT NULL DEFAULT 0",
         "whatsapp_click_count": "INTEGER NOT NULL DEFAULT 0",
@@ -731,11 +898,18 @@ def ensure_schema():
         if name not in artisan_columns:
             db.session.execute(text(f"ALTER TABLE artisans ADD COLUMN {name} {definition}"))
     db.session.execute(text("UPDATE artisans SET status = CASE WHEN is_approved THEN 'approved' ELSE 'rejected' END WHERE status IS NULL OR status = ''"))
+    db.session.execute(text("UPDATE artisans SET archived_at = COALESCE(withdrawn_at, CURRENT_TIMESTAMP) WHERE status IN ('rejected', 'withdrawn') AND archived_at IS NULL"))
+    db.session.execute(text("CREATE INDEX IF NOT EXISTS ix_artisans_archived_at ON artisans (archived_at)"))
     report_columns = {column["name"] for column in inspect(db.engine).get_columns("profile_reports")}
     if "profile_snapshot" not in report_columns:
         db.session.execute(text("ALTER TABLE profile_reports ADD COLUMN profile_snapshot TEXT NULL"))
     if "proposed_profile" not in report_columns:
         db.session.execute(text("ALTER TABLE profile_reports ADD COLUMN proposed_profile TEXT NULL"))
+    db.session.execute(text("UPDATE profile_reports SET processed_at = CURRENT_TIMESTAMP WHERE status = 'rejected' AND processed_at IS NULL"))
+    analytics_columns = {column["name"] for column in inspect(db.engine).get_columns("analytics_events")}
+    if "page_path" not in analytics_columns:
+        db.session.execute(text("ALTER TABLE analytics_events ADD COLUMN page_path VARCHAR(200) NULL"))
+    db.session.execute(text("CREATE INDEX IF NOT EXISTS ix_analytics_events_page_path ON analytics_events (page_path)"))
     db.session.commit()
 
 
