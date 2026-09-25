@@ -928,3 +928,53 @@ body:not(.admin-route) .site-footer .footer-bottom {
 @media (max-width: 520px) {
   body:not(.admin-route)::after { height: 100svh; }
 }
+
+
+/* Restore final CTA image and remove the old negative sticky-footer offset. */
+body:not(.admin-route) .final-cta {
+  position: relative;
+  z-index: 3;
+  margin-bottom: 0 !important;
+  min-height: 520px;
+  isolation: isolate;
+  background-image: linear-gradient(90deg, rgba(23,18,14,.96) 0%, rgba(23,18,14,.78) 42%, rgba(23,18,14,.22) 100%), url('./assets/marketing-desktop-03-confiance.webp') !important;
+  background-position: center !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  color: #fffaf5 !important;
+}
+body:not(.admin-route) .final-cta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, rgba(23,18,14,.22), rgba(23,18,14,0));
+  pointer-events: none;
+}
+body:not(.admin-route) .final-cta-inner { position: relative; z-index: 1; }
+body:not(.admin-route) .final-cta p:not(.eyebrow) { color: #d1bcae !important; }
+body:not(.admin-route) .final-cta h2,
+body:not(.admin-route) .final-cta .eyebrow { color: #fffaf5 !important; }
+
+/* Keep the footer dark in light mode as well. */
+html[data-theme="light"] body:not(.admin-route) .site-footer,
+html[data-theme="light"] body:not(.admin-route) .site-footer .footer-main,
+html[data-theme="light"] body:not(.admin-route) .site-footer .footer-bottom {
+  background: #17120e !important;
+  color: #fffaf5 !important;
+}
+html[data-theme="light"] body:not(.admin-route) .site-footer .footer-links,
+html[data-theme="light"] body:not(.admin-route) .site-footer p,
+html[data-theme="light"] body:not(.admin-route) .site-footer .footer-bottom {
+  color: #c0aea0 !important;
+}
+html[data-theme="light"] body:not(.admin-route) .site-footer a,
+html[data-theme="light"] body:not(.admin-route) .site-footer strong,
+html[data-theme="light"] body:not(.admin-route) .site-footer span {
+  color: #fffaf5 !important;
+}
+html[data-theme="light"] body:not(.admin-route) .site-footer .footer-links a,
+html[data-theme="light"] body:not(.admin-route) .site-footer .footer-bottom a,
+html[data-theme="light"] body:not(.admin-route) .site-footer .footer-map-card > a {
+  color: #ffc3ae !important;
+}
