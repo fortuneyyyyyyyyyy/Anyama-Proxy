@@ -837,3 +837,45 @@ html[data-theme="dark"] .feedback-invite-card{background:var(--surface);border-c
 
 /* Carte de localisation sans contour */
 .footer-map-card{padding:0;background:transparent;border:0;box-shadow:none;transform:none}.footer-map-label{padding:0 0 9px;color:var(--ink)}.footer-map-card>a{padding-left:0;color:var(--accent-strong)}
+
+
+/* Full-screen reveal footer: page content stays above it until the end of the scroll. */
+html, body { min-height: 100%; }
+body:not(.admin-route) { background: var(--dark, #17120e); }
+body:not(.admin-route) main,
+body:not(.admin-route) > .final-cta {
+  position: relative;
+  z-index: 2;
+  background: var(--bg, #fffaf5);
+}
+body:not(.admin-route) main { margin-bottom: 100vh; }
+body:not(.admin-route) > .final-cta { margin-bottom: 100vh; }
+body:not(.admin-route) .site-footer {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 0;
+  width: 100%;
+  height: 100vh;
+  min-height: 100svh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(42px, 8vh, 96px) max(28px, calc((100% - 1144px) / 2)) 30px;
+  background: var(--dark, #17120e);
+  color: var(--on-dark, #fffaf5);
+}
+body:not(.admin-route) .site-footer .footer-main,
+body:not(.admin-route) .site-footer .footer-bottom { width: 100%; }
+body:not(.admin-route) .site-footer .footer-main { flex: 0 0 auto; }
+body:not(.admin-route) .site-footer .footer-bottom { flex: 0 0 auto; }
+@media (max-width: 520px) {
+  body:not(.admin-route) main { margin-bottom: 100svh; }
+  body:not(.admin-route) > .final-cta { margin-bottom: 100svh; }
+  body:not(.admin-route) .site-footer {
+    height: 100svh;
+    min-height: 100svh;
+    padding: 38px 18px 24px;
+    justify-content: flex-start;
+  }
+}
