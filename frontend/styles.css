@@ -978,3 +978,59 @@ html[data-theme="light"] body:not(.admin-route) .site-footer .footer-bottom a,
 html[data-theme="light"] body:not(.admin-route) .site-footer .footer-map-card > a {
   color: #ffc3ae !important;
 }
+
+
+/* Artisan CTA follows the page theme instead of using a hard dark block. */
+body:not(.admin-route) .join-cta {
+  position: relative;
+  isolation: isolate;
+  background: var(--surface, #fff) !important;
+  color: var(--ink, #17120e) !important;
+  border-top: 1px solid var(--line, #eadfd4);
+  border-bottom: 1px solid var(--line, #eadfd4);
+}
+body:not(.admin-route) .join-cta > div,
+body:not(.admin-route) .join-cta > a,
+body:not(.admin-route) .join-cta > details { position: relative; z-index: 1; }
+body:not(.admin-route) .join-cta h2,
+body:not(.admin-route) .join-cta .eyebrow { color: var(--ink, #17120e); }
+body:not(.admin-route) .join-cta h2 em { color: var(--accent-strong, #c41600); font-style: normal; }
+body:not(.admin-route) .join-cta > div > p:not(.eyebrow) { color: var(--muted, #756a61) !important; }
+body:not(.admin-route) .join-cta .registration-panel {
+  background: color-mix(in srgb, var(--bg, #fffaf5) 92%, transparent) !important;
+  color: var(--ink, #17120e) !important;
+  border-color: var(--line, #eadfd4) !important;
+  box-shadow: 0 18px 50px rgba(71,35,13,.10);
+}
+body:not(.admin-route) .join-cta .registration-panel summary { color: var(--accent-strong, #c41600); }
+body:not(.admin-route) .join-cta .registration-panel label { color: var(--muted, #756a61); }
+body:not(.admin-route) .join-cta .registration-panel input,
+body:not(.admin-route) .join-cta .registration-panel select,
+body:not(.admin-route) .join-cta .registration-panel textarea {
+  background: var(--bg, #fffaf5) !important;
+  color: var(--ink, #17120e) !important;
+  border-color: var(--line, #eadfd4) !important;
+}
+body:not(.admin-route) .join-cta .registration-panel .form-hint,
+body:not(.admin-route) .join-cta .registration-panel .form-feedback { color: var(--muted, #756a61); }
+html[data-theme="dark"] body:not(.admin-route) .join-cta {
+  background: var(--dark-soft, #241a14) !important;
+  color: var(--on-dark, #fffaf5) !important;
+  border-color: #4b392e;
+}
+html[data-theme="dark"] body:not(.admin-route) .join-cta h2,
+html[data-theme="dark"] body:not(.admin-route) .join-cta .eyebrow { color: var(--on-dark, #fffaf5); }
+html[data-theme="dark"] body:not(.admin-route) .join-cta > div > p:not(.eyebrow) { color: #c0aea0 !important; }
+html[data-theme="dark"] body:not(.admin-route) .join-cta .registration-panel {
+  background: rgba(23,18,14,.46) !important;
+  color: var(--on-dark, #fffaf5) !important;
+  border-color: #70513d !important;
+}
+html[data-theme="dark"] body:not(.admin-route) .join-cta .registration-panel label { color: #c0aea0; }
+html[data-theme="dark"] body:not(.admin-route) .join-cta .registration-panel input,
+html[data-theme="dark"] body:not(.admin-route) .join-cta .registration-panel select,
+html[data-theme="dark"] body:not(.admin-route) .join-cta .registration-panel textarea {
+  background: #241a14 !important;
+  color: #fffaf5 !important;
+  border-color: #70513d !important;
+}
