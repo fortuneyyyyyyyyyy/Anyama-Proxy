@@ -841,7 +841,7 @@ html[data-theme="dark"] .feedback-invite-card{background:var(--surface);border-c
 
 /* Full-screen reveal footer: page content stays above it until the end of the scroll. */
 html, body { min-height: 100%; }
-body:not(.admin-route) { background: var(--dark, #17120e); }
+body:not(.admin-route) { background: var(--bg, #fffaf5); }
 body:not(.admin-route) main,
 body:not(.admin-route) > .final-cta {
   position: relative;
@@ -862,8 +862,8 @@ body:not(.admin-route) .site-footer {
   flex-direction: column;
   justify-content: center;
   padding: clamp(42px, 8vh, 96px) max(28px, calc((100% - 1144px) / 2)) 30px;
-  background: var(--dark, #17120e);
-  color: var(--on-dark, #fffaf5);
+  background: var(--bg, #fffaf5);
+  color: var(--ink, #17120e);
 }
 body:not(.admin-route) .site-footer .footer-main,
 body:not(.admin-route) .site-footer .footer-bottom { width: 100%; }
@@ -893,37 +893,33 @@ body:not(.admin-route)::after {
   background: transparent;
   pointer-events: none;
 }
-body:not(.admin-route) .site-footer,
-body:not(.admin-route) .site-footer * {
-  color-scheme: dark;
-}
 body:not(.admin-route) .site-footer {
-  background: #17120e !important;
-  color: #fffaf5 !important;
-  border-color: #4b392e !important;
+  background: var(--bg, #fffaf5) !important;
+  color: var(--ink, #17120e) !important;
+  border-color: var(--line, #eadfd4) !important;
 }
 body:not(.admin-route) .site-footer a,
 body:not(.admin-route) .site-footer strong,
 body:not(.admin-route) .site-footer span,
 body:not(.admin-route) .site-footer small {
-  color: #fffaf5;
+  color: var(--ink, #17120e);
 }
 body:not(.admin-route) .site-footer p,
 body:not(.admin-route) .site-footer .footer-links,
 body:not(.admin-route) .site-footer .footer-bottom {
-  color: #c0aea0;
+  color: var(--muted, #756a61);
 }
 body:not(.admin-route) .site-footer .footer-links a,
 body:not(.admin-route) .site-footer .footer-bottom a,
 body:not(.admin-route) .site-footer .footer-map-card > a {
-  color: #ffc3ae;
+  color: var(--accent-strong, #c41600);
 }
 body:not(.admin-route) .site-footer .footer-map-label,
 body:not(.admin-route) .site-footer .footer-map-label span {
-  color: #fffaf5;
+  color: var(--ink, #17120e);
 }
 body:not(.admin-route) .site-footer .footer-bottom {
-  border-color: #4b392e;
+  border-color: var(--line, #eadfd4);
 }
 @media (max-width: 520px) {
   body:not(.admin-route)::after { height: 100svh; }
@@ -956,35 +952,11 @@ body:not(.admin-route) .final-cta p:not(.eyebrow) { color: #d1bcae !important; }
 body:not(.admin-route) .final-cta h2,
 body:not(.admin-route) .final-cta .eyebrow { color: #fffaf5 !important; }
 
-/* Keep the footer dark in light mode as well. */
-html[data-theme="light"] body:not(.admin-route) .site-footer,
-html[data-theme="light"] body:not(.admin-route) .site-footer .footer-main,
-html[data-theme="light"] body:not(.admin-route) .site-footer .footer-bottom {
-  background: #17120e !important;
-  color: #fffaf5 !important;
-}
-html[data-theme="light"] body:not(.admin-route) .site-footer .footer-links,
-html[data-theme="light"] body:not(.admin-route) .site-footer p,
-html[data-theme="light"] body:not(.admin-route) .site-footer .footer-bottom {
-  color: #c0aea0 !important;
-}
-html[data-theme="light"] body:not(.admin-route) .site-footer a,
-html[data-theme="light"] body:not(.admin-route) .site-footer strong,
-html[data-theme="light"] body:not(.admin-route) .site-footer span {
-  color: #fffaf5 !important;
-}
-html[data-theme="light"] body:not(.admin-route) .site-footer .footer-links a,
-html[data-theme="light"] body:not(.admin-route) .site-footer .footer-bottom a,
-html[data-theme="light"] body:not(.admin-route) .site-footer .footer-map-card > a {
-  color: #ffc3ae !important;
-}
-
-
 /* Artisan CTA follows the page theme instead of using a hard dark block. */
 body:not(.admin-route) .join-cta {
   position: relative;
   isolation: isolate;
-  background: var(--surface, #fff) !important;
+  background: var(--bg, #fffaf5) !important;
   color: var(--ink, #17120e) !important;
   border-top: 1px solid var(--line, #eadfd4);
   border-bottom: 1px solid var(--line, #eadfd4);
@@ -1014,7 +986,7 @@ body:not(.admin-route) .join-cta .registration-panel textarea {
 body:not(.admin-route) .join-cta .registration-panel .form-hint,
 body:not(.admin-route) .join-cta .registration-panel .form-feedback { color: var(--muted, #756a61); }
 html[data-theme="dark"] body:not(.admin-route) .join-cta {
-  background: var(--dark-soft, #241a14) !important;
+  background: var(--bg, #17120e) !important;
   color: var(--on-dark, #fffaf5) !important;
   border-color: #4b392e;
 }
