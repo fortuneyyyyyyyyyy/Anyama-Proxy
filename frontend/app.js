@@ -158,7 +158,7 @@ if (studioCard && studioLink) {
   studioLink.addEventListener('pointerleave', hide);
 }
 
-$('#year') && ($('#year').textContent = new Date().getFullYear()); initMobileMenu(); initTheme(); initPWA(); initProfileModal(); initPublicAnalytics(); initCookieConsent(); initPublicFeedback(); initFeedbackPrompt(); loadFeedbackSummary(); lucide.createIcons(); if ($('#artisan-grid')) Promise.all([loadMeta(), loadArtisans()]);
+$('#year') && ($('#year').textContent = new Date().getFullYear()); initMobileMenu(); initTheme(); initPWA(); initProfileModal(); initPublicAnalytics(); initCookieConsent(); initPublicFeedback(); initFeedbackPrompt(); loadFeedbackSummary(); initSpringMorphButtons(); lucide.createIcons(); if ($('#artisan-grid')) Promise.all([loadMeta(), loadArtisans()]);
 
 
 function initFeedbackPrompt() {
