@@ -879,3 +879,52 @@ body:not(.admin-route) .site-footer .footer-bottom { flex: 0 0 auto; }
     justify-content: flex-start;
   }
 }
+
+
+/* Final footer reveal correction: transparent end spacer, no layout jump. */
+body:not(.admin-route) main { margin-bottom: 0 !important; }
+body:not(.admin-route) > .final-cta { margin-bottom: 0 !important; }
+body:not(.admin-route)::after {
+  content: "";
+  display: block;
+  position: relative;
+  z-index: 1;
+  height: 100vh;
+  background: transparent;
+  pointer-events: none;
+}
+body:not(.admin-route) .site-footer,
+body:not(.admin-route) .site-footer * {
+  color-scheme: dark;
+}
+body:not(.admin-route) .site-footer {
+  background: #17120e !important;
+  color: #fffaf5 !important;
+  border-color: #4b392e !important;
+}
+body:not(.admin-route) .site-footer a,
+body:not(.admin-route) .site-footer strong,
+body:not(.admin-route) .site-footer span,
+body:not(.admin-route) .site-footer small {
+  color: #fffaf5;
+}
+body:not(.admin-route) .site-footer p,
+body:not(.admin-route) .site-footer .footer-links,
+body:not(.admin-route) .site-footer .footer-bottom {
+  color: #c0aea0;
+}
+body:not(.admin-route) .site-footer .footer-links a,
+body:not(.admin-route) .site-footer .footer-bottom a,
+body:not(.admin-route) .site-footer .footer-map-card > a {
+  color: #ffc3ae;
+}
+body:not(.admin-route) .site-footer .footer-map-label,
+body:not(.admin-route) .site-footer .footer-map-label span {
+  color: #fffaf5;
+}
+body:not(.admin-route) .site-footer .footer-bottom {
+  border-color: #4b392e;
+}
+@media (max-width: 520px) {
+  body:not(.admin-route)::after { height: 100svh; }
+}
