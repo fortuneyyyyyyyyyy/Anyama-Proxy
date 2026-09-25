@@ -10,12 +10,16 @@ Anyama Proxy est un annuaire local pour trouver rapidement un artisan à Anyama.
 - Inscription sans compte avec prénom, nom, métier, quartier, consentement et au moins un contact.
 - Publication immédiate des inscriptions valides et consenties.
 - Option **Autre métier…** et **Autre quartier…** avec saisie libre.
-- Page publique dédiée de retrait : `https://anyama-proxy.vercel.app/retrait.html`.
-- Dashboard admin avec recherche, onglets Artisans / Signalements / Avis, pagination 10 sur PC et 6 sur mobile.
+- Demande de retrait via le signalement « Demander le retrait » dans le modal de chaque fiche artisan (plus de page dédiée `/retrait.html`).
+- Formulaire de contact en panneau « morph » repliable (`détails/summary`), avec la même expérience d’ouverture/fermeture que le formulaire d’inscription.
+- Footer et section « Vous êtes artisan ? » qui suivent le fond de la landing page en mode clair et sombre (plus de bande forcée en sombre).
+- Bannière cookies en rectangle compact ancré en bas à gauche sur ordinateur, pleine largeur et responsive sur mobile.
+- Dashboard admin avec recherche, onglets Analytics / Artisans / Signalements / Avis / Feedback / Messages / Historique, pagination 10 sur PC et 6 sur mobile.
 - Mode clair/sombre complet dans l’administration, mémorisé dans le navigateur.
 - Actualisation automatique du dashboard admin toutes les 30 secondes, avec conservation de l’onglet courant.
 - Cartes de modération différenciées pour les demandes de retrait et les signalements sérieux, avec actions adaptées.
-- Notifications e-mail Resend pour les inscriptions et doléances, avec lien vers l’onglet admin correspondant.
+- Notifications e-mail Resend pour chaque nouvelle inscription, avis, signalement (erreur/sérieux/retrait), feedback et message de contact, avec lien direct vers l’onglet admin correspondant.
+- Récapitulatif hebdomadaire automatique par e-mail (Resend) : visiteurs uniques et inscriptions par jour sur les 7 derniers jours, envoyé au plus une fois par semaine ; envoi manuel possible depuis l’onglet Analytics (« Envoyer le récap hebdo »).
 - Pages légales V2 harmonisées : mentions légales, confidentialité, cookies et CGU.
 - Bannière cookies affichée uniquement sur l’accueil avec les actions **Compris** et **En savoir plus**, mémorisée localement.
 - Bouton flottant **Feedback & Expérience** sur les pages publiques uniquement, avec parcours Visiteur et Artisan / professionnel.
@@ -51,7 +55,6 @@ Importer le dépôt et choisir `frontend` comme **Root Directory**. Le frontend 
 Les URLs publiques sont :
 
 - site : `https://anyama-proxy.vercel.app/` ;
-- retrait : `https://anyama-proxy.vercel.app/retrait.html` ;
 - connexion admin : `https://anyama-proxy.vercel.app/admin/login` ;
 - dashboard : `https://anyama-proxy.vercel.app/admin`.
 
@@ -59,13 +62,17 @@ Les URLs publiques sont :
 
 Les inscriptions valides sont enregistrées avec `is_approved=true` et `status=approved`, puis peuvent apparaître immédiatement dans l’annuaire. L’administrateur peut les rechercher, les publier, les désactiver ou les retirer.
 
-Une doléance est créée par `POST /api/removal-requests` avec le nom du demandeur, son numéro, l’artisan concerné et un motif facultatif. L’administrateur peut traiter ou refuser la demande. Un retrait passe le profil à `status=withdrawn` et `is_approved=false` sans supprimer automatiquement la ligne de base.
+Une demande de retrait est un signalement de type `withdraw` créé par `POST /api/profile-reports` depuis le modal de la fiche artisan (nom du demandeur, numéro, motifs, détail facultatif). Un retrait validé passe le profil à `status=withdrawn` et `is_approved=false` sans supprimer automatiquement la ligne de base.
 
 Les signalements de profil sont centralisés dans l’onglet **Signalements**. Les types pris en charge sont l’erreur d’information, le signalement sérieux et la demande de retrait. Une proposition de correction est affichée sous forme de comparaison avant/après et n’est appliquée qu’après validation par l’administrateur.
 
 L’onglet **Avis** permet de publier, rejeter ou masquer les avis visiteurs. Les actions de modération restent protégées par la session administrateur.
 
-Les notifications Resend ouvrent le dashboard avec `?tab=artisans`, `?tab=reports` ou `?tab=feedback`. L’authentification reste obligatoire. La requête serveur inclut un `User-Agent` compatible avec Resend ; en cas d’échec d’envoi, la donnée soumise reste enregistrée.
+Chaque nouvelle inscription, avis, signalement, feedback ou message de contact déclenche une notification Resend qui ouvre le dashboard sur l’onglet correspondant (`?tab=artisans`, `?tab=reviews`, `?tab=reports`, `?tab=feedback` ou `?tab=messages`). L’authentification reste obligatoire. La requête serveur inclut un `User-Agent` compatible avec Resend ; en cas d’échec d’envoi, la donnée soumise reste enregistrée.
+
+### Récapitulatif hebdomadaire (visites & inscriptions)
+
+Un job interne (déclenché par le trafic entrant, sans dépendance externe) vérifie au plus toutes les 6 heures si 7 jours se sont écoulés depuis le dernier envoi. Le cas échéant, il calcule, pour chacun des 7 derniers jours, le nombre de visiteurs uniques (`analytics_events`, `page_view`) et le nombre d’inscriptions artisanales reçues, puis envoie un e-mail Resend récapitulatif (`?tab=analytics`) à l’administrateur. La date du dernier envoi est conservée dans la table `app_settings` pour survivre aux redémarrages du service. Un bouton **Envoyer le récap hebdo** dans l’onglet Analytics permet un envoi manuel immédiat (utile pour tester la configuration Resend).
 
 ### V2 Verso — Feedback & Expérience
 
@@ -107,8 +114,8 @@ pytest -q
 app.py                         # Flask, modèles, API, notifications Resend
 render.yaml                    # service Render et variables attendues
 cahier-de-charge.md            # spécification fonctionnelle à jour
+templates/                     # pages Flask (admin, inscription, 404)
 frontend/index.html            # landing page Vercel
-frontend/retrait.html          # page publique de retrait
 frontend/app.js                # API, recherche, formulaires, PWA
 frontend/styles.css            # design clair/sombre
 frontend/vercel.json            # façade publique vers Render
@@ -116,8 +123,11 @@ frontend/legal/                # documents légaux
 frontend/assets/               # logos et assets
 ```
 
-**Version V2 Verso en préparation — dernière mise à jour : 23 septembre 2026.**
+**Dernière mise à jour : 25 septembre 2026** — formulaire de contact en morph panel, footer/join-cta adaptatifs clair/sombre, bannière cookies compacte, demande de retrait unifiée via le modal de signalement, récapitulatif hebdomadaire Resend (visites & inscriptions).
+
+
+
 git add .
-git commit -m "la V2 Verso fini"
+git commit -m "la V2 Verso finni"
 
 git push -u origin main

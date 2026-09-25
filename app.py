@@ -75,6 +75,15 @@ class Artisan(db.Model):
 
 
 class RemovalRequest(db.Model):
+    # NOTE: la page autonome frontend/retrait.html (et les templates Flask
+    # removal_request.html / removal_success.html) a été retirée du projet.
+    # Une demande de retrait passe désormais uniquement par le signalement
+    # de type "withdraw" dans le modal de la fiche artisan, via la route
+    # /api/profile-reports (voir api_profile_reports), qui notifie déjà
+    # l'administrateur par Resend sous l'onglet "reports". Ce modèle n'est
+    # plus alimenté par une nouvelle route ; il reste défini uniquement
+    # pour la compatibilité des données déjà existantes et le nettoyage
+    # des références lors de la suppression d'un artisan.
     __tablename__ = "removal_requests"
     id = db.Column(db.Integer, primary_key=True)
     requester_name = db.Column(db.String(120), nullable=False)
@@ -207,6 +216,29 @@ class AnalyticsEvent(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
 
 
+class AppSetting(db.Model):
+    """Small key/value store for lightweight app state (e.g. last weekly report sent)."""
+    __tablename__ = "app_settings"
+    key = db.Column(db.String(60), primary_key=True)
+    value = db.Column(db.String(255), nullable=True)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+def get_setting(key):
+    row = db.session.get(AppSetting, key)
+    return row.value if row else None
+
+
+def set_setting(key, value):
+    row = db.session.get(AppSetting, key)
+    if row:
+        row.value = value
+    else:
+        row = AppSetting(key=key, value=value)
+        db.session.add(row)
+    db.session.commit()
+
+
 def admin_configured():
     return bool(os.getenv("ADMIN_EMAIL") and (os.getenv("ADMIN_PASSWORD") or os.getenv("ADMIN_PASSWORD_HASH")))
 
@@ -282,6 +314,58 @@ def send_admin_notification(subject, body_html, tab):
     except Exception:
         app.logger.warning("Resend notification failed", exc_info=True)
         return False
+
+
+FRENCH_WEEKDAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+
+
+def compute_weekly_stats(now=None):
+    """Return per-day visitor/signup counts for the trailing 7 days, plus 7-day totals."""
+    now = now or datetime.utcnow()
+    first_day = now.date() - timedelta(days=6)
+    period_start = datetime.combine(first_day, datetime.min.time())
+    days = [first_day + timedelta(days=index) for index in range(7)]
+    daily_visitors = {day: set() for day in days}
+    page_views = AnalyticsEvent.query.filter(AnalyticsEvent.created_at >= period_start, AnalyticsEvent.event_name == "page_view").all()
+    for event in page_views:
+        day = event.created_at.date()
+        if day in daily_visitors:
+            daily_visitors[day].add(event.visitor_id)
+    daily_signups = {day: 0 for day in days}
+    new_artisans = Artisan.query.filter(Artisan.created_at >= period_start).all()
+    for artisan in new_artisans:
+        day = artisan.created_at.date()
+        if day in daily_signups:
+            daily_signups[day] += 1
+    daily_rows = [{"date": day, "visitors": len(daily_visitors[day]), "signups": daily_signups[day]} for day in days]
+    total_unique_visitors = len({visitor_id for values in daily_visitors.values() for visitor_id in values})
+    total_signups = sum(daily_signups.values())
+    return daily_rows, total_unique_visitors, total_signups
+
+
+def send_weekly_report(now=None):
+    """Compute the 7-day visits/signups recap and email it to the admin via Resend."""
+    now = now or datetime.utcnow()
+    daily_rows, total_unique_visitors, total_signups = compute_weekly_stats(now)
+    rows_html = "".join(
+        f"<tr><td style=\"padding:7px 10px;border-bottom:1px solid #eadfd4\">{FRENCH_WEEKDAYS[row['date'].weekday()]} {row['date'].strftime('%d/%m')}</td>"
+        f"<td style=\"padding:7px 10px;border-bottom:1px solid #eadfd4;text-align:right\">{row['visitors']}</td>"
+        f"<td style=\"padding:7px 10px;border-bottom:1px solid #eadfd4;text-align:right\">{row['signups']}</td></tr>"
+        for row in daily_rows
+    )
+    body_html = (
+        "<h2>Récapitulatif hebdomadaire</h2>"
+        f"<p><strong>Période :</strong> {daily_rows[0]['date'].strftime('%d/%m/%Y')} → {daily_rows[-1]['date'].strftime('%d/%m/%Y')}</p>"
+        "<table style=\"width:100%;border-collapse:collapse;margin:12px 0;font-size:14px\">"
+        "<thead><tr>"
+        "<th style=\"text-align:left;padding:7px 10px;border-bottom:2px solid #17120e\">Jour</th>"
+        "<th style=\"text-align:right;padding:7px 10px;border-bottom:2px solid #17120e\">Visiteurs</th>"
+        "<th style=\"text-align:right;padding:7px 10px;border-bottom:2px solid #17120e\">Inscriptions</th>"
+        "</tr></thead><tbody>" + rows_html + "</tbody></table>"
+        f"<p><strong>Total visiteurs uniques (7 jours) :</strong> {total_unique_visitors}</p>"
+        f"<p><strong>Total inscriptions (7 jours) :</strong> {total_signups}</p>"
+    )
+    return send_admin_notification("Récapitulatif hebdomadaire — Anyama Proxy", body_html, "analytics")
 
 
 def admin_logged_in():
@@ -382,6 +466,32 @@ def create_app(test_config=None):
             history_purge_state["last_run"] = now_monotonic
         finally:
             history_purge_lock.release()
+        return None
+
+    weekly_report_state = {"last_checked": 0.0}
+    weekly_report_lock = threading.Lock()
+
+    @app.before_request
+    def run_weekly_report_check():
+        """At most once every 7 days, email the admin a visits/signups recap via Resend."""
+        now_monotonic = time.monotonic()
+        if now_monotonic - weekly_report_state["last_checked"] < 6 * 60 * 60:
+            return None
+        if not weekly_report_lock.acquire(blocking=False):
+            return None
+        try:
+            weekly_report_state["last_checked"] = now_monotonic
+            last_sent_raw = get_setting("weekly_report_last_sent_at")
+            last_sent = datetime.fromisoformat(last_sent_raw) if last_sent_raw else None
+            now = datetime.utcnow()
+            if last_sent is None or now - last_sent >= timedelta(days=7):
+                if send_weekly_report(now):
+                    set_setting("weekly_report_last_sent_at", now.isoformat())
+        except Exception:
+            db.session.rollback()
+            app.logger.exception("Weekly report check failed")
+        finally:
+            weekly_report_lock.release()
         return None
 
     @app.get("/")
@@ -786,6 +896,17 @@ def create_app(test_config=None):
                                event_totals=event_totals, event_labels=event_labels, journeys=journeys, chart_days=chart_days,
                                archived_artisans=archived_artisans, archived_reports=archived_reports,
                                history_count=len(archived_artisans) + len(archived_reports))
+
+    @app.post("/admin/reports/weekly/send")
+    @admin_required
+    def admin_send_weekly_report():
+        now = datetime.utcnow()
+        if send_weekly_report(now):
+            set_setting("weekly_report_last_sent_at", now.isoformat())
+            flash("Le récapitulatif hebdomadaire a été envoyé par e-mail.", "success")
+        else:
+            flash("Impossible d’envoyer le récapitulatif (vérifiez RESEND_API_KEY et ADMIN_EMAIL).", "error")
+        return redirect(url_for("admin_dashboard", tab="analytics"))
 
     @app.post("/admin/artisans/<int:artisan_id>/status")
     @admin_required
