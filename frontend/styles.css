@@ -24,7 +24,7 @@ html[data-theme=light] .site-header .brand-logo,html[data-theme=light] .site-foo
 /* --- Footer plein écran révélé au scroll (desktop uniquement) --- */
 @media (min-width: 851px) {
   :root { --footer-reveal-h: 100vh; }
-  .final-cta { position: relative; z-index: 2; margin-bottom: calc(-1 * var(--footer-reveal-h)); }
+  .final-cta { position: relative; z-index: 2; min-height: var(--footer-reveal-h); margin-bottom: calc(-1 * var(--footer-reveal-h)); }
   .site-footer {
     position: sticky; bottom: 0; z-index: 0;
     height: var(--footer-reveal-h); max-width: none; margin: 0; padding: 0;
