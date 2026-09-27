@@ -954,13 +954,15 @@ body:not(.admin-route) .join-cta h2,
 body:not(.admin-route) .join-cta .eyebrow { color: var(--ink, #17120e); }
 body:not(.admin-route) .join-cta h2 em { color: var(--accent-strong, #c41600); font-style: normal; }
 body:not(.admin-route) .join-cta > div > p:not(.eyebrow) { color: var(--muted, #756a61) !important; }
-body:not(.admin-route) .join-cta .registration-panel {
+body:not(.admin-route) .join-cta .registration-panel,
+body:not(.admin-route) .contact-card .contact-panel {
   background: color-mix(in srgb, var(--bg, #fffaf5) 92%, transparent) !important;
   color: var(--ink, #17120e) !important;
   border-color: var(--line, #eadfd4) !important;
   box-shadow: 0 18px 50px rgba(71,35,13,.10);
 }
-body:not(.admin-route) .join-cta .registration-panel summary { color: var(--accent-strong, #c41600); }
+body:not(.admin-route) .join-cta .registration-panel summary,
+body:not(.admin-route) .contact-card .contact-panel summary { color: var(--accent-strong, #c41600); }
 body:not(.admin-route) .join-cta .registration-panel label { color: var(--muted, #756a61); }
 body:not(.admin-route) .join-cta .registration-panel input,
 body:not(.admin-route) .join-cta .registration-panel select,
@@ -979,7 +981,8 @@ html[data-theme="dark"] body:not(.admin-route) .join-cta {
 html[data-theme="dark"] body:not(.admin-route) .join-cta h2,
 html[data-theme="dark"] body:not(.admin-route) .join-cta .eyebrow { color: var(--on-dark, #fffaf5); }
 html[data-theme="dark"] body:not(.admin-route) .join-cta > div > p:not(.eyebrow) { color: #c0aea0 !important; }
-html[data-theme="dark"] body:not(.admin-route) .join-cta .registration-panel {
+html[data-theme="dark"] body:not(.admin-route) .join-cta .registration-panel,
+html[data-theme="dark"] body:not(.admin-route) .contact-card .contact-panel {
   background: rgba(23,18,14,.46) !important;
   color: var(--on-dark, #fffaf5) !important;
   border-color: #70513d !important;
