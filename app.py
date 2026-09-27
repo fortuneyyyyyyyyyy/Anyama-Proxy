@@ -810,6 +810,33 @@ def create_app(test_config=None):
                 pass
         return jsonify({"success": True, "count": len(ratings), "average": round(sum(ratings) / len(ratings), 1) if ratings else None})
 
+    @app.get("/api/reviews/summary")
+    def api_reviews_summary():
+        average, count = db.session.query(func.avg(Review.rating), func.count(Review.id)).filter_by(status="published").one()
+        recent = (
+            db.session.query(Review, Artisan.name, Artisan.category)
+            .join(Artisan, Review.artisan_id == Artisan.id)
+            .filter(Review.status == "published", Review.comment.isnot(None), Review.comment != "")
+            .order_by(Review.created_at.desc())
+            .limit(6)
+            .all()
+        )
+        reviews = [
+            {
+                "rating": review.rating,
+                "comment": review.comment,
+                "artisan_name": artisan_name,
+                "artisan_category": artisan_category,
+            }
+            for review, artisan_name, artisan_category in recent
+        ]
+        return jsonify({
+            "success": True,
+            "average": round(float(average), 1) if average is not None else None,
+            "count": int(count or 0),
+            "reviews": reviews,
+        })
+
     @app.route("/admin/login", methods=["GET", "POST"])
     def admin_login():
         if request.method == "POST":

@@ -1,7 +1,7 @@
 # ANYAMA PROXY
 ## Roadmap produit → observation → monétisation → architecture Full Stack
 
-> **État au 23 septembre 2026 :** la V2 « Confiance & Réputation » est livrée et n’est plus une étape à construire. Le produit est actuellement dans la phase **V2 Verso — Observation & Feedback**, avec le feedback public, le stockage anonyme, les statistiques admin, le suivi des visites et l’affichage de la note d’expérience sur la landing.
+> **État au 26 septembre 2026 :** la V2 « Confiance & Réputation » est livrée et n’est plus une étape à construire. Le produit est actuellement dans la phase **V2 Verso — Observation & Feedback**, avec le feedback public, le stockage anonyme, les statistiques admin, le suivi des visites, l’affichage de la note d’expérience sur la landing, et le récapitulatif hebdomadaire (visites/inscriptions) envoyé par e-mail. Un audit SEO/CRO/AEO du 26 septembre 2026 a identifié des finitions à traiter avant la sortie de V2 Verso (voir §6 ci-dessous) et confirmé que les changements structurels (pages par artisan, SEO local) restent bien du ressort de la V3.
 
 ---
 
@@ -378,6 +378,61 @@ PROMOTION
 → payée par l'artisan
 ```
 
+## 6. Finitions techniques — SEO, CRO, AEO (V2 Verso final 🚧)
+
+Audit du 26 septembre 2026 (grille `akatech-seo-geo-expert` v2.0). Certains points
+touchent l'architecture cible et restent en V3 — ils y étaient déjà prévus, l'audit
+ne fait que le confirmer. Le reste peut et doit être corrigé maintenant, sans
+attendre V3.
+
+### À corriger maintenant (V2 Verso final)
+
+- [x] Barre de confiance : remplacer les `—` placeholder (« — artisans
+  disponibles », « — expérience Anyama Proxy ») par de vrais chiffres, ou masquer
+  la statistique tant qu'elle est à zéro — un compteur vide nuit à la crédibilité
+  plus qu'il n'aide. *(Fait le 26/09 : ping de réveil Render au chargement, retry
+  automatique sur le résumé feedback qui n'en avait aucun, masquage propre de la
+  statistique en cas de zéro réel, pulse de chargement au lieu d'un tiret figé.)*
+- [x] Afficher publiquement la note moyenne et le nombre d'avis sur la landing —
+  le système d'avis existe depuis la V2 mais n'est jamais montré aux visiteurs,
+  alors que c'est le levier de conversion le plus direct pour un nouvel arrivant
+  qui hésite. (Ne pas confondre avec la note d'expérience déjà affichée, qui
+  vient du feedback produit, pas des avis artisans.) *(Fait le 26/09 : nouvel
+  endpoint `/api/reviews/summary`, section « Avis vérifiés » publique, masquée
+  tant qu'il n'y a pas encore de données.)*
+- [x] `og:image` : remplacer le logo carré (512×512) par un visuel 1200×630 —
+  déterminant pour l'aperçu de lien WhatsApp, canal de partage dominant ici.
+  *(Fait le 26/09 : nouveau visuel généré à partir des assets de marque.)*
+- [x] `twitter:image` explicite (ne pas dépendre du repli automatique vers
+  `og:image`). *(Fait le 26/09.)*
+- [x] Figer la version de la librairie d'icônes (`lucide@x.y.z` au lieu de
+  `@latest`) — fiabilité de rendu + cache navigateur. *(Fait le 26/09 :
+  `lucide@0.525.0`.)*
+- [x] Schema `ItemList` sur la liste d'artisans affichée — ne nécessite pas de
+  nouvelle page, juste un balisage JSON-LD sur la liste existante. *(Fait le
+  26/09 : injecté dynamiquement en JS après chaque chargement de la liste.)*
+- [x] Section FAQ visible (Anyama Proxy est-il gratuit ? Comment m'inscrire ?
+  Comment signaler un profil ?) avec balisage `FAQPage` — format le plus citable
+  par une IA générative, ne nécessite pas de nouvelle page. *(Fait le 26/09 :
+  5 questions, accordéon morph-panel, schema correspondant exactement au
+  contenu visible.)*
+- [x] `llms.txt` à la racine (optionnel, coût faible, peu de pages à lister).
+  *(Déjà présent — l'audit du 26/09 avait tort sur ce point précis, corrigé
+  sans modification du fichier existant.)*
+
+### Reste en V3 (confirmé, pas anticipé)
+
+- Page dédiée par artisan (`/artisan/jean-kouassi-plombier`) — cf. V3 §3 Profils
+  publics riches.
+- Pages SEO local par métier/quartier (`/anyama/plombiers`) — cf. V3 §4 SEO local.
+- Contenu éditorial/guides — dépend des mêmes pages, donc de la même
+  architecture ; pas de section blog séparée avant.
+
+> Pourquoi ne pas anticiper ces pages dès la V2 Verso : elles demandent un
+> pré-rendu (SSR ou génération statique par entité) — un changement
+> d'architecture, pas une finition. Les construire isolément avant V3 reviendrait
+> à reconstruire deux fois le même sous-système.
+
 ## Critères de sortie de V2 Verso
 
 La V3 peut être préparée lorsque les données permettent de répondre à des questions comme :
@@ -485,6 +540,12 @@ La page peut contenir :
 ```
 
 L'objectif est que la plateforme ne dépende pas uniquement de son trafic direct.
+
+> Confirmé par l'audit SEO/CRO/AEO du 26 septembre 2026 (voir V2 Verso §6) :
+> c'est le principal levier de croissance organique aujourd'hui bloqué par le
+> tout-SPA — chaque page manquante ici est une famille entière de requêtes
+> longue traîne (« [métier] à [quartier] ») invisible pour Google comme pour une
+> IA générative.
 
 ## 5. Statistiques
 
