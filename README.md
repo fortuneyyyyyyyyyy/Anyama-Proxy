@@ -128,6 +128,6 @@ frontend/assets/               # logos et assets
 
 
 git add .
-git commit -m "la V2final terminer"
+git commit -m "la V2final terminerr"
 
 git push -u origin main
