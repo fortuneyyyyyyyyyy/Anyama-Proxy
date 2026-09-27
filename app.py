@@ -799,16 +799,31 @@ def create_app(test_config=None):
 
     @app.get("/api/feedback/summary")
     def api_feedback_summary():
-        experience_feedback = ProductFeedback.query.filter(ProductFeedback.feedback_type.in_(["visitor", "artisan"])).all()
+        experience_feedback = ProductFeedback.query.filter(ProductFeedback.feedback_type.in_(["visitor", "artisan"])).order_by(ProductFeedback.created_at.desc()).all()
         ratings = []
+        testimonials = []
         for item in experience_feedback:
-            value = item.answers_display.get("experience_rating")
+            answers = item.answers_display
             try:
-                if 1 <= int(value) <= 5:
-                    ratings.append(int(value))
+                rating = int(answers.get("experience_rating"))
             except (TypeError, ValueError):
-                pass
-        return jsonify({"success": True, "count": len(ratings), "average": round(sum(ratings) / len(ratings), 1) if ratings else None})
+                rating = None
+            if rating is None or not (1 <= rating <= 5):
+                continue
+            ratings.append(rating)
+            comment = str(answers.get("comment") or "").strip()
+            if comment and len(testimonials) < 6:
+                testimonials.append({
+                    "rating": rating,
+                    "comment": comment,
+                    "author_type": "artisan" if item.feedback_type == "artisan" else "visitor",
+                })
+        return jsonify({
+            "success": True,
+            "count": len(ratings),
+            "average": round(sum(ratings) / len(ratings), 1) if ratings else None,
+            "feedbacks": testimonials,
+        })
 
     @app.get("/api/reviews/summary")
     def api_reviews_summary():
