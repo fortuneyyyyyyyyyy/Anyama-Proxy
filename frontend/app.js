@@ -22,7 +22,71 @@ function retryFeedbackSummary() { clearTimeout(feedbackRetryTimer); feedbackRetr
 async function loadFeedbackSummary() { const average = $('#feedback-average'); const count = $('#feedback-count'); if (!average || !count) return; const feedbackStat = average.closest('.feedback-stat'); try { const response = await fetch(`${API_BASE}/api/feedback/summary`, {cache:'no-store'}); const data = await response.json(); if (!response.ok) throw new Error('summary'); average.classList.remove('is-loading'); if (data.average !== null && data.count) { average.innerHTML = `<i data-lucide="star" aria-hidden="true"></i> ${Number(data.average).toFixed(1)}`; count.textContent = `expérience Anyama Proxy · ${data.count} note${data.count > 1 ? 's' : ''}`; feedbackStat?.removeAttribute('hidden'); window.lucide?.createIcons(); } else { feedbackStat?.setAttribute('hidden', ''); } } catch { retryFeedbackSummary(); } }
 let feedbackTestimonialsRetryTimer;
 function retryFeedbackTestimonials() { clearTimeout(feedbackTestimonialsRetryTimer); feedbackTestimonialsRetryTimer = window.setTimeout(loadFeedbackTestimonials, 5000); }
-async function loadFeedbackTestimonials() { const section = $('#avis'); if (!section) return; try { const response = await fetch(`${API_BASE}/api/feedback/summary`, {cache:'no-store'}); const data = await response.json(); if (!response.ok) throw new Error('feedback'); if (!data.count || !data.feedbacks || !data.feedbacks.length) { section.setAttribute('hidden', ''); return; } $('#reviews-average').textContent = Number(data.average).toFixed(1); $('#reviews-count').textContent = `sur ${data.count} retour${data.count > 1 ? 's' : ''} vérifié${data.count > 1 ? 's' : ''}`; $('#reviews-grid').innerHTML = data.feedbacks.map(item => `<article class="review-card"><div class="review-stars">${Array.from({length: 5}, (_, index) => `<i data-lucide="star"${index < item.rating ? '' : ' style="opacity:.25"'}></i>`).join('')}</div><p>${escapeHTML(item.comment)}</p><span class="review-author"><b>${item.author_type === 'artisan' ? 'Artisan / professionnel' : 'Visiteur'}</b> · Anyama Proxy</span></article>`).join(''); section.removeAttribute('hidden'); window.lucide?.createIcons(); } catch { retryFeedbackTestimonials(); } }
+async function loadFeedbackTestimonials() { const section = $('#avis'); if (!section) return; try { const response = await fetch(`${API_BASE}/api/feedback/summary`, {cache:'no-store'}); const data = await response.json(); if (!response.ok) throw new Error('feedback'); if (!data.count || !data.feedbacks || !data.feedbacks.length) { section.setAttribute('hidden', ''); return; } $('#reviews-average').textContent = Number(data.average).toFixed(1); $('#reviews-count').textContent = `sur ${data.count} retour${data.count > 1 ? 's' : ''} vérifié${data.count > 1 ? 's' : ''}`; $('#reviews-grid').innerHTML = data.feedbacks.map(item => `<article class="review-card"><div class="review-stars">${Array.from({length: 5}, (_, index) => `<i data-lucide="star"${index < item.rating ? '' : ' style="opacity:.25"'}></i>`).join('')}</div><p>${escapeHTML(item.comment)}</p><span class="review-author"><b>${item.author_type === 'artisan' ? 'Artisan / professionnel' : 'Visiteur'}</b> · Anyama Proxy</span></article>`).join(''); section.removeAttribute('hidden'); window.lucide?.createIcons(); initReviewsCarousel(data.feedbacks.length); } catch { retryFeedbackTestimonials(); } }
+
+let reviewsCarouselTimer = null;
+function initReviewsCarousel(count) {
+  const track = $('#reviews-grid'); const dotsWrap = $('#reviews-dots');
+  const prevBtn = document.querySelector('[data-reviews-prev]'); const nextBtn = document.querySelector('[data-reviews-next]');
+  if (!track) return;
+  clearInterval(reviewsCarouselTimer); reviewsCarouselTimer = null;
+  if (dotsWrap) dotsWrap.innerHTML = '';
+  const cards = Array.from(track.children);
+  const multi = count > 1;
+  if (prevBtn) prevBtn.hidden = !multi;
+  if (nextBtn) nextBtn.hidden = !multi;
+  if (!multi) return;
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let active = 0;
+
+  cards.forEach((_, index) => {
+    const dot = document.createElement('button');
+    dot.type = 'button'; dot.className = 'reviews-dot'; dot.setAttribute('aria-label', `Avis ${index + 1} sur ${count}`);
+    dot.addEventListener('click', () => goTo(index));
+    dotsWrap && dotsWrap.appendChild(dot);
+  });
+  const dots = dotsWrap ? Array.from(dotsWrap.children) : [];
+
+  function paintDots() { dots.forEach((dot, index) => dot.classList.toggle('is-active', index === active)); }
+  function goTo(index) {
+    active = (index + count) % count;
+    track.scrollTo({ left: cards[active].offsetLeft - track.offsetLeft, behavior: reduceMotion ? 'auto' : 'smooth' });
+    paintDots();
+  }
+  function next() { goTo(active + 1); }
+  function prev() { goTo(active - 1); }
+
+  function play() { if (reduceMotion) return; stop(); reviewsCarouselTimer = window.setInterval(next, 5000); }
+  function stop() { clearInterval(reviewsCarouselTimer); reviewsCarouselTimer = null; }
+
+  prevBtn && prevBtn.addEventListener('click', () => { prev(); play(); });
+  nextBtn && nextBtn.addEventListener('click', () => { next(); play(); });
+  const viewport = track.closest('.reviews-viewport');
+  [viewport, dotsWrap].forEach((element) => {
+    if (!element) return;
+    element.addEventListener('mouseenter', stop);
+    element.addEventListener('mouseleave', play);
+    element.addEventListener('touchstart', stop, { passive: true });
+    element.addEventListener('focusin', stop);
+    element.addEventListener('focusout', play);
+  });
+  // Un glissement manuel au doigt déplace le scroll : on resynchronise l'actif
+  // sur la carte la plus proche du centre plutôt que de fighter le scroll natif.
+  let scrollEndTimer = null;
+  track.addEventListener('scroll', () => {
+    clearTimeout(scrollEndTimer);
+    scrollEndTimer = setTimeout(() => {
+      const center = track.scrollLeft + track.clientWidth / 2;
+      let closest = 0, closestDist = Infinity;
+      cards.forEach((card, index) => { const dist = Math.abs((card.offsetLeft + card.clientWidth / 2) - center); if (dist < closestDist) { closestDist = dist; closest = index; } });
+      active = closest; paintDots();
+    }, 120);
+  }, { passive: true });
+
+  goTo(0);
+  play();
+}
 
 function updateItemListSchema() { let script = document.getElementById('itemlist-schema'); if (!artisansCache.length) { script?.remove(); return; } if (!script) { script = document.createElement('script'); script.type = 'application/ld+json'; script.id = 'itemlist-schema'; document.head.appendChild(script); } const items = artisansCache.slice(0, 30).map((artisan, index) => ({ '@type': 'ListItem', position: index + 1, item: { '@type': 'LocalBusiness', name: artisan.name, description: artisan.service || artisan.description || undefined, areaServed: artisan.zone || 'Anyama', category: artisan.category } })); script.textContent = JSON.stringify({ '@context': 'https://schema.org', '@type': 'ItemList', name: 'Annuaire des artisans à Anyama', itemListElement: items }); }
 
