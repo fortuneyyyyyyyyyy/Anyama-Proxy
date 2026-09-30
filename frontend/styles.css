@@ -1043,12 +1043,11 @@ html[data-theme="dark"] .trust-value strong.is-loading::after{background:#3a2c22
   .reviews-grid{scroll-behavior:auto}
 }
 
-/* ---- Accent vert citron pour les avis vérifiés — palette propre à cette
-   section, distincte du rouge-orange utilisé pour les CTA ailleurs. */
-:root{--lime:#d8ff3e;--lime-ink:#1f2400}
-.reviews-score-value i{color:var(--lime-ink)}
-.reviews-score-value{background:var(--lime);display:inline-flex;padding:4px 12px 4px 10px;border-radius:999px}
-.review-stars{color:var(--lime-ink)}
+/* ---- Accent orange pour les avis vérifiés — même orange dominant que les CTA
+   du reste du site (var(--accent)). */
+.reviews-score-value i{color:#fff}
+.reviews-score-value{background:var(--accent);color:#fff;display:inline-flex;padding:4px 12px 4px 10px;border-radius:999px}
+.review-stars{color:var(--accent)}
 .review-stars i[style*="opacity"]{color:var(--line)}
-.reviews-dot.is-active{background:var(--lime)}
-.reviews-nav:hover{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+.reviews-dot.is-active{background:var(--accent)}
+.reviews-nav:hover{background:var(--accent);border-color:var(--accent);color:#fff}
